@@ -12,7 +12,7 @@ class CPASOCP:
 
     def __init__(self, prediction_horizon):
         """
-        :param prediction_horizon: prediction horizon of ireation
+        :param prediction_horizon: prediction horizon (N) of dynamic system
         """
         self.__prediction_horizon = prediction_horizon
         self.__dynamics = [None]
