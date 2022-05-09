@@ -2,17 +2,38 @@ import numpy as np
 import cpasocp.core.proximal_online_part as core_online
 
 
+def proj_c(stage_ncc_sets_constraints, terminal_ncc_set_constraints, vector, prediction_horizon,
+           stage_state_constraints, terminal_state_constraints):
+    """
+    :param stage_ncc_sets_constraints: nonempty convex closed sets C_t, describing state-control constraints
+    :param terminal_ncc_set_constraints: nonempty convex closed set C_N, describing terminal constraints
+    :param vector: the vector to be projected to sets C_t and C_N
+    :param prediction_horizon: prediction horizon (N) of dynamic system
+    :param stage_state_constraints: matrix Gamma_x, describing the state constraints
+    :param terminal_state_constraints: matrix Gamma_N, describing terminal constraints
+    """
+    N = prediction_horizon
+    n_c = stage_state_constraints.shape[0]
+    n_f = terminal_state_constraints.shape[0]
+    vector_stage = stage_ncc_sets_constraints.project(vector[0:N * n_c])
+    vector_terminal = terminal_ncc_set_constraints.project(vector[N * n_c:N * n_c + n_f])
+    vector = np.vstack((vector_stage, vector_terminal))
+    return vector
+
+
 def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta, Phi, Phi_z, Phi_star,
-                                     prediction_horizon,
-                                     initial_state, state_dynamics, control_dynamics, control_weight, P_seq,
-                                     R_tilde_seq, K_seq, A_bar_seq):
+                                     prediction_horizon, initial_state, state_dynamics, control_dynamics,
+                                     control_weight, P_seq, R_tilde_seq, K_seq, A_bar_seq, stage_state_constraints,
+                                     terminal_state_constraints, stage_ncc_sets_constraints,
+                                     terminal_ncc_set_constraints):
     N = prediction_horizon
     A = state_dynamics
     B = control_dynamics
     R = control_weight
+    C_t = stage_ncc_sets_constraints
+    C_N = terminal_ncc_set_constraints
     n_x = A.shape[1]
     n_u = B.shape[1]
-    n_z = (N + 1) * n_x + N * n_u
     n_Phi = Phi_z.shape[0]
     x0 = initial_state
     z0 = initial_guess_z
@@ -29,7 +50,6 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
     z_prev = z0
     z_next = z0
     eta_prev = eta0
-    eta_half_next = eta0
     eta_next = eta0
 
     while (np.abs(z_next - z_prev) < epsilon).all() and (np.abs(eta_next - eta_prev) < epsilon).all():
@@ -46,8 +66,8 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
                                                        R_tilde_seq=R_tilde_seq,
                                                        K_seq=K_seq,
                                                        A_bar_seq=A_bar_seq)
-        eta_half_next = eta_prev + alpha_2 * Phi @ (
-                2 * z_next - z_prev)
-        eta_next = eta_half_next - alpha_2 * (1 / alpha_2 * eta_half_next)
+        eta_half_next = eta_prev + alpha_2 * Phi @ (2 * z_next - z_prev)
+        eta_next = eta_half_next - proj_c(C_t, C_N, alpha_2 * (1 / alpha_2 * eta_half_next), prediction_horizon,
+                                          stage_state_constraints, terminal_state_constraints)
 
     return z_next, eta_next

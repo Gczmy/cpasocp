@@ -107,7 +107,8 @@ class CPASOCP:
                                                                          Phi, Phi_z, Phi_star,
                                                                          self.__prediction_horizon, initial_state,
                                                                          self.__A, self.__B, self.__R, P_seq,
-                                                                         R_tilde_seq, K_seq, A_bar_seq)
+                                                                         R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
+                                                                         self.__Gamma_N, self.__C_t, self.__C_N)
         return self
 
     # Class ------------------------------------------------------------------------------------------------------------
