@@ -15,36 +15,36 @@ class Constraints:
         # check if state and control matrices have same number of rows
         if stage_state_constraints.shape[0] != stage_control_constraints.shape[0]:
             raise ValueError("Constraints matrices rows are different sizes")
-        self.__stage_state_constraints = stage_state_constraints
-        self.__stage_control_constraints = stage_control_constraints
-        self.__terminal_state_constraints = terminal_state_constraints
-        self.__stage_ncc_sets_constraints = stage_ncc_sets_constraints
-        self.__terminal_ncc_set_constraints = terminal_ncc_set_constraints
+        self.__Gamma_x = stage_state_constraints
+        self.__Gamma_u = stage_control_constraints
+        self.__Gamma_N = terminal_state_constraints
+        self.__C_t = stage_ncc_sets_constraints
+        self.__C_N = terminal_ncc_set_constraints
 
     @property
     def stage_state_constraints(self):
-        return self.__stage_state_constraints
+        return self.__Gamma_x
 
     @property
     def stage_control_constraints(self):
-        return self.__stage_control_constraints
+        return self.__Gamma_u
 
     @property
     def terminal_state_constraints(self):
-        return self.__terminal_state_constraints
+        return self.__Gamma_N
 
     @property
     def stage_ncc_sets(self):
-        return self.__stage_ncc_sets_constraints
+        return self.__C_t
 
     @property
     def terminal_ncc_set(self):
-        return self.__terminal_ncc_set_constraints
+        return self.__C_N
 
     def __str__(self):
-        return f"Constraints item; stage sets type: {type(self.__stage_ncc_sets_constraints).__name__}, " \
-               f"terminal set type: {type(self.__terminal_ncc_set_constraints).__name__}"
+        return f"Constraints item; stage sets type: {type(self.__C_t).__name__}, " \
+               f"terminal set type: {type(self.__C_N).__name__}"
 
     def __repr__(self):
-        return f"Constraints item; stage sets type: {type(self.__stage_ncc_sets_constraints).__name__}, " \
-               f"terminal set type: {type(self.__terminal_ncc_set_constraints).__name__}"
+        return f"Constraints item; stage sets type: {type(self.__C_t).__name__}, " \
+               f"terminal set type: {type(self.__C_N).__name__}"
