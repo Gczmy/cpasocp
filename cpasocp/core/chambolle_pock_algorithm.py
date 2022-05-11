@@ -2,8 +2,8 @@ import numpy as np
 import cpasocp.core.proximal_online_part as core_online
 
 
-def proj_c(stage_ncc_sets_constraints, terminal_ncc_set_constraints, vector, prediction_horizon,
-           stage_state_constraints, terminal_state_constraints):
+def proj_to_c(stage_ncc_sets_constraints, terminal_ncc_set_constraints, vector, prediction_horizon,
+              stage_state_constraints, terminal_state_constraints):
     """
     :param stage_ncc_sets_constraints: nonempty convex closed sets C_t, describing state-control constraints
     :param terminal_ncc_set_constraints: nonempty convex closed set C_N, describing terminal constraints
@@ -45,8 +45,8 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
         raise ValueError("Initial guess vector eta row is not correct")
 
     # Choose α1, α2 > 0 such that α1α2∥Phi∥^2 < 1
-    alpha_1 = 0.99 / np.linalg.norm(Phi @ np.eye(n_z) * 0.5)
-    alpha_2 = 0.99 / np.linalg.norm(Phi @ np.eye(n_z) * 0.5)
+    alpha_1 = 0.99 / np.linalg.norm(Phi @ np.eye(n_z) * 0.2)
+    alpha_2 = 0.99 / np.linalg.norm(Phi @ np.eye(n_z) * 0.2)
 
     z_next = z0
     eta_next = eta0
@@ -69,8 +69,9 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
                                                        K_seq=K_seq,
                                                        A_bar_seq=A_bar_seq)
         eta_half_next = eta_prev + alpha_2 * Phi @ (2 * z_next - z_prev)
-        eta_next = eta_half_next - alpha_2 * proj_c(C_t, C_N, 1 / alpha_2 * eta_half_next, prediction_horizon,
-                                                    stage_state_constraints, terminal_state_constraints)
+
+        eta_next = eta_half_next - alpha_2 * proj_to_c(C_t, C_N, 1 / alpha_2 * eta_half_next, prediction_horizon,
+                                                       stage_state_constraints, terminal_state_constraints)
         for i in range(n_z):
             if np.abs(z_next[i] - z_prev[i]) < epsilon:
                 z_proximal_end[i] = True

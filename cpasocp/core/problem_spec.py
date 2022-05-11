@@ -15,23 +15,22 @@ class CPASOCP:
         :param prediction_horizon: prediction horizon (N) of dynamic system
         """
         self.__prediction_horizon = prediction_horizon
-        self.__A = [None]
-        self.__B = [None]
-        self.__dynamics = [None]
-        self.__Q = [None]
-        self.__R = [None]
-        self.__P = [None]
+        self.__A = None
+        self.__B = None
+        self.__dynamics = None
+        self.__Q = None
+        self.__R = None
+        self.__P = None
         self.__list_of_stage_cost = [None] * self.__prediction_horizon
-        self.__terminal_cost = [None]
-        self.__P = [None]
-        self.__Gamma_x = [None]
-        self.__Gamma_u = [None]
-        self.__Gamma_N = [None]
-        self.__C_t = [None]
-        self.__C_N = [None]
-        self.__constraints = [None]
-        self.__z = [None]
-        self.__eta = [None]
+        self.__terminal_cost = None
+        self.__Gamma_x = None
+        self.__Gamma_u = None
+        self.__Gamma_N = None
+        self.__C_t = None
+        self.__C_N = None
+        self.__constraints = None
+        self.__z = None
+        self.__eta = None
 
     # GETTERS
     @property
