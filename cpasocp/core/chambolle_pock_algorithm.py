@@ -8,17 +8,20 @@ def proj_to_c(vector, prediction_horizon, stage_state, terminal_state, stage_set
     :param prediction_horizon: prediction horizon (N) of dynamic system
     :param stage_state: matrix (Gamma_x), describing the state constraints
     :param terminal_state: matrix (Gamma_N), describing terminal constraints
-    :param stage_sets: nonempty convex closed sets (C) which is the cartesian product of sets (C_t), describing
+    :param stage_sets: nonempty convex closed sets (C) which is the Cartesian product of sets (C_t), describing
     state-control constraints
     :param terminal_set: nonempty convex closed set (C_N), describing terminal constraints
     """
     N = prediction_horizon
     n_c = stage_state.shape[0]
     n_f = terminal_state.shape[0]
-    vector_list = [None] * prediction_horizon
-    for i in range(prediction_horizon):
-        vector_list[i] = vector[i * n_c:(i + 1) * n_c]
-    vector_stage = stage_sets.project(vector_list)
+    if type(stage_sets).__name__ == 'Cartesian':
+        vector_list = [None] * prediction_horizon
+        for i in range(prediction_horizon):
+            vector_list[i] = vector[i * n_c:(i + 1) * n_c]
+        vector_stage = stage_sets.project(vector_list)
+    else:
+        vector_stage = stage_sets.project(vector[0:N * n_c])
     vector_terminal = terminal_set.project(vector[N * n_c:N * n_c + n_f])
     vector = np.vstack((vector_stage, vector_terminal))
     return vector
@@ -50,7 +53,8 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
     :param A_bar_seq: tensor, matrix sequence of (A_bar) from proximal of h offline part
     :param stage_state: matrix (Gamma_x), describing the state constraints
     :param terminal_state: matrix (Gamma_N), describing terminal constraints
-    :param stage_sets: nonempty convex closed sets (C_t), describing state-control constraints
+    :param stage_sets: nonempty convex closed sets (C) which is the Cartesian product of sets (C_t), describing
+    state-control constraints
     :param terminal_set: nonempty convex closed set (C_N), describing terminal constraints
     """
     N = prediction_horizon
