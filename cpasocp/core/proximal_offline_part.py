@@ -2,63 +2,34 @@ import numpy as np
 import scipy.sparse.linalg as lingalg
 
 
-def proximal_of_h_offline_part(prediction_horizon, proximal_lambda, state_dynamics, control_dynamics,
-                               stage_state_weight, control_weight, terminal_state_weight):
-    """
-    :param prediction_horizon: matrix Gamma_x, describing the state constraints
-    :param proximal_lambda: a parameter lambda for proximal operator
-    :param prediction_horizon: prediction horizon (N) of dynamic system
-    :param state_dynamics: matrix A, describing the state dynamics
-    :param control_dynamics: matrix B, describing control dynamics
-    :param stage_state_weight: matrix Q, stage state cost matrix
-    :param control_weight: scalar or matrix R, input cost matrix or scalar
-    :param terminal_state_weight: matrix P, terminal state cost matrix
-    """
-    A = state_dynamics
-    B = control_dynamics
-    Q = stage_state_weight
-    R = control_weight
-    P = terminal_state_weight
-    n_x = A.shape[1]
-    n_u = B.shape[1]
-    N = prediction_horizon
-    P_seq = np.zeros((n_x, n_x, N + 1))  # tensor
-    R_tilde_seq = np.zeros((n_x, n_x, N))  # tensor
-    K_seq = np.zeros((n_x, n_x, N))  # tensor
-    A_bar_seq = np.zeros((n_x, n_x, N))  # tensor
-    P_0 = P + proximal_lambda * np.eye(n_x)
-    P_seq[:, :, N] = P_0
-
-    for i in range(N):
-        R_tilde_seq[:, :, N - i - 1] = R + 1 / proximal_lambda * np.eye(n_u) + B.T @ P_seq[:, :, N - i] @ B
-        K_seq[:, :, N - i - 1] = - np.linalg.inv(R_tilde_seq[:, :, N - i - 1]) @ B.T @ P_seq[:, :, N - i] @ A
-        A_bar_seq[:, :, N - i - 1] = A + B @ K_seq[:, :, N - i - 1]
-        P_seq[:, :, N - i - 1] = Q + 1 / proximal_lambda * np.eye(n_x) \
-                                 + K_seq[:, :, N - i - 1].T @ (R + np.eye(n_u)) @ K_seq[:, :, N - i - 1] \
-                                 + A_bar_seq[:, :, N - i - 1].T @ P_seq[:, :, N - i - 1] @ A_bar_seq[:, :, N - i - 1]
-
-    return P_seq, R_tilde_seq, K_seq, A_bar_seq
-
-
 class ProximalOfflinePart:
-    def __init__(self, prediction_horizon, state_dynamics, control_dynamics, stage_state_constraints,
-                 stage_control_constraints, terminal_state_constraints):
+    def __init__(self, prediction_horizon, proximal_lambda, state_dynamics, control_dynamics, stage_state_weight,
+                 control_weight, terminal_state_weight, stage_state, stage_control, terminal_state):
         """
         :param prediction_horizon: prediction horizon (N) of dynamic system
+        :param proximal_lambda: a parameter (lambda) for proximal operator
         :param state_dynamics: matrix A, describing the state dynamics
         :param control_dynamics: matrix B, describing control dynamics
-        :param stage_state_constraints: matrix Gamma_x, describing the state constraints
-        :param stage_control_constraints: matrix Gamma_u, describing control constraints
-        :param terminal_state_constraints: matrix Gamma_N, describing terminal constraints
+        :param stage_state_weight: matrix (Q), stage state cost matrix
+        :param control_weight: scalar or matrix (R), input cost matrix or scalar
+        :param terminal_state_weight: matrix (P), terminal state cost matrix
+        :param stage_state: matrix Gamma_x, describing the state constraints
+        :param stage_control: matrix Gamma_u, describing control constraints
+        :param terminal_state: matrix Gamma_N, describing terminal constraints
         """
         self.__prediction_horizon = prediction_horizon
+        self.__lambda = proximal_lambda
         self.__A = state_dynamics
         self.__B = control_dynamics
-        self.__Gamma_x = stage_state_constraints
-        self.__Gamma_u = stage_control_constraints
-        self.__Gamma_N = terminal_state_constraints
+        self.__Q = stage_state_weight
+        self.__R = control_weight
+        self.__P = terminal_state_weight
+        self.__Gamma_x = stage_state
+        self.__Gamma_u = stage_control
+        self.__Gamma_N = terminal_state
         self.make_Phi()
         self.make_Phi_star()
+        self.algorithm()
 
     def make_Phi(self):
         """Construct LinearOperator Phi"""
@@ -107,13 +78,41 @@ class ProximalOfflinePart:
             Phi_star = np.vstack((Phi_star_x, Phi_star_u))
 
             for i in range(1, N):
-                phi_n_x = np.reshape(Gamma_x.T @ v[(i+1) * n_c:(i+2) * n_c], (n_x, 1))
-                phi_n_u = np.reshape(Gamma_u.T @ v[(i+1) * n_c:(i+2) * n_c], (n_u, 1))
+                phi_n_x = np.reshape(Gamma_x.T @ v[(i + 1) * n_c:(i + 2) * n_c], (n_x, 1))
+                phi_n_u = np.reshape(Gamma_u.T @ v[(i + 1) * n_c:(i + 2) * n_c], (n_u, 1))
                 Phi_star = np.vstack((Phi_star, phi_n_x, phi_n_u))
 
-            Phi_star_N = np.reshape(Gamma_N.T @ v[N * n_c:(N+1) * n_c], (n_x, 1))
+            Phi_star_N = np.reshape(Gamma_N.T @ v[N * n_c:(N + 1) * n_c], (n_x, 1))
             Phi_star = np.vstack((Phi_star, Phi_star_N))
 
             return Phi_star
 
         return lingalg.LinearOperator((n_z, n_Phi), matvec=matvec)
+
+    def algorithm(self):
+        """Construct the offline algorithm"""
+        A = self.__A
+        B = self.__B
+        Q = self.__Q
+        R = self.__R
+        P = self.__P
+        n_x = A.shape[1]
+        n_u = B.shape[1]
+        N = self.__prediction_horizon
+        P_seq = np.zeros((n_x, n_x, N + 1))  # tensor
+        R_tilde_seq = np.zeros((n_x, n_x, N))  # tensor
+        K_seq = np.zeros((n_x, n_x, N))  # tensor
+        A_bar_seq = np.zeros((n_x, n_x, N))  # tensor
+        P_0 = P + self.__lambda * np.eye(n_x)
+        P_seq[:, :, N] = P_0
+
+        for i in range(N):
+            R_tilde_seq[:, :, N - i - 1] = R + 1 / self.__lambda * np.eye(n_u) + B.T @ P_seq[:, :, N - i] @ B
+            K_seq[:, :, N - i - 1] = - np.linalg.inv(R_tilde_seq[:, :, N - i - 1]) @ B.T @ P_seq[:, :, N - i] @ A
+            A_bar_seq[:, :, N - i - 1] = A + B @ K_seq[:, :, N - i - 1]
+            P_seq[:, :, N - i - 1] = Q + 1 / self.__lambda * np.eye(n_x) \
+                                     + K_seq[:, :, N - i - 1].T @ (R + np.eye(n_u)) @ K_seq[:, :, N - i - 1] \
+                                     + A_bar_seq[:, :, N - i - 1].T @ P_seq[:, :, N - i - 1] @ A_bar_seq[:, :,
+                                                                                               N - i - 1]
+
+        return P_seq, R_tilde_seq, K_seq, A_bar_seq

@@ -1,47 +1,43 @@
-import cpasocp.core.sets as core_sets
-
-
 class Constraints:
     """
     State/Control Constraints and Terminal Constraints
     """
 
-    def __init__(self, stage_state_constraints, stage_control_constraints, terminal_state_constraints,
-                 stage_ncc_sets_constraints, terminal_ncc_set_constraints):
+    def __init__(self, stage_state, stage_control, terminal_state, stage_sets, terminal_set):
         """
-        :param stage_state_constraints: matrix Gamma_x, describing the state constraints
-        :param stage_control_constraints: matrix Gamma_u, describing control constraints
-        :param terminal_state_constraints: matrix Gamma_N, describing terminal constraints
-        :param stage_ncc_sets_constraints: nonempty convex closed sets C_t, describing state-control constraints
-        :param terminal_ncc_set_constraints: nonempty convex closed set C_N, describing terminal constraints
+        :param stage_state: matrix (Gamma_x), describing the state constraints
+        :param stage_control: matrix (Gamma_u), describing control constraints
+        :param terminal_state: matrix (Gamma_N), describing terminal constraints
+        :param stage_sets: nonempty convex closed sets (C_t), describing state-control constraints
+        :param terminal_set: nonempty convex closed set (C_N), describing terminal constraints
         """
         # check if state and control matrices have same number of rows
-        if stage_state_constraints.shape[0] != stage_control_constraints.shape[0]:
+        if stage_state.shape[0] != stage_control.shape[0]:
             raise ValueError("Constraints matrices rows are different sizes")
-        self.__Gamma_x = stage_state_constraints
-        self.__Gamma_u = stage_control_constraints
-        self.__Gamma_N = terminal_state_constraints
-        self.__C_t = stage_ncc_sets_constraints
-        self.__C_N = terminal_ncc_set_constraints
+        self.__Gamma_x = stage_state
+        self.__Gamma_u = stage_control
+        self.__Gamma_N = terminal_state
+        self.__C_t = stage_sets
+        self.__C_N = terminal_set
 
     @property
-    def stage_state_constraints(self):
+    def stage_state(self):
         return self.__Gamma_x
 
     @property
-    def stage_control_constraints(self):
+    def stage_control(self):
         return self.__Gamma_u
 
     @property
-    def terminal_state_constraints(self):
+    def terminal_state(self):
         return self.__Gamma_N
 
     @property
-    def stage_ncc_sets(self):
+    def stage_sets(self):
         return self.__C_t
 
     @property
-    def terminal_ncc_set(self):
+    def terminal_set(self):
         return self.__C_N
 
     def __str__(self):

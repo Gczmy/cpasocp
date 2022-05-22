@@ -193,13 +193,15 @@ class Cartesian:
         self.__dimensions = [None] * self.__num_sets
 
     def project(self, list_of_vectors):
-        projection = []
+        projection_list = []
         for i in range(self.__num_sets):
             self.__dimensions[i] = _check_dimension(type(self.__sets[i]),
                                                     self.__sets[i].dimension,
                                                     list_of_vectors[i])
-            projection.append(self.__sets[i].project(list_of_vectors[i]))
-
+            projection_list.append(self.__sets[i].project(list_of_vectors[i]))
+        projection = projection_list[0]
+        for i in range(1, self.__num_sets):
+            projection = np.vstack((projection, projection_list[i]))
         self.__dimension = sum(self.__dimensions)
         return projection
 

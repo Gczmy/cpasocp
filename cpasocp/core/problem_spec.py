@@ -77,31 +77,31 @@ class CPASOCP:
 
     # Constraints ------------------------------------------------------------------------------------------------------
 
-    def with_constraints(self, stage_state_constraints, stage_control_constraints, terminal_state_constraints,
-                         stage_ncc_sets_constraints, terminal_ncc_set_constraints):
-        self.__Gamma_x = stage_state_constraints
-        self.__Gamma_u = stage_control_constraints
-        self.__Gamma_N = terminal_state_constraints
-        self.__C_t = stage_ncc_sets_constraints
-        self.__C_N = terminal_ncc_set_constraints
-        self.__constraints = core_constraints.Constraints(stage_state_constraints, stage_control_constraints,
-                                                          terminal_state_constraints, stage_ncc_sets_constraints,
-                                                          terminal_ncc_set_constraints)
+    def with_constraints(self, stage_state, stage_control, terminal_state, stage_sets, terminal_set):
+        self.__Gamma_x = stage_state
+        self.__Gamma_u = stage_control
+        self.__Gamma_N = terminal_state
+        self.__C_t = stage_sets
+        self.__C_N = terminal_set
+        self.__constraints = core_constraints.Constraints(stage_state, stage_control, terminal_state, stage_sets,
+                                                          terminal_set)
         return self
 
     # Chambolle-Pock algorithm for Optimal Control Problems -----------------------------------------------------------
 
-    def chambolle_pock_algorithm(self, proximal_lambda, epsilon, initial_state, initial_guess_z,
-                                 initial_guess_eta):
-        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.proximal_of_h_offline_part(self.__prediction_horizon,
-                                                                                       proximal_lambda, self.__A,
-                                                                                       self.__B, self.__Q, self.__R,
-                                                                                       self.__P)
-        Phi = core_offline.ProximalOfflinePart(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x,
-                                               self.__Gamma_u, self.__Gamma_N).make_Phi()
+    def chambolle_pock_algorithm(self, proximal_lambda, epsilon, initial_state, initial_guess_z, initial_guess_eta):
+        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(self.__prediction_horizon,
+                                                                                proximal_lambda, self.__A, self.__B,
+                                                                                self.__Q, self.__R, self.__P,
+                                                                                self.__Gamma_x, self.__Gamma_u,
+                                                                                self.__Gamma_N).algorithm()
+        Phi = core_offline.ProximalOfflinePart(self.__prediction_horizon, proximal_lambda, self.__A, self.__B, self.__Q,
+                                               self.__R, self.__P, self.__Gamma_x, self.__Gamma_u,
+                                               self.__Gamma_N).make_Phi()
         Phi_z = Phi * initial_guess_z
-        Phi_star = core_offline.ProximalOfflinePart(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x,
-                                                    self.__Gamma_u, self.__Gamma_N).make_Phi_star()
+        Phi_star = core_offline.ProximalOfflinePart(self.__prediction_horizon, proximal_lambda, self.__A, self.__B,
+                                                    self.__Q, self.__R, self.__P, self.__Gamma_x, self.__Gamma_u,
+                                                    self.__Gamma_N).make_Phi_star()
         self.__z, self.__eta = core_cpa.chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta,
                                                                          Phi, Phi_z, Phi_star,
                                                                          self.__prediction_horizon, initial_state,
