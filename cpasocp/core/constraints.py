@@ -8,7 +8,8 @@ class Constraints:
         :param stage_state: matrix (Gamma_x), describing the state constraints
         :param stage_control: matrix (Gamma_u), describing control constraints
         :param terminal_state: matrix (Gamma_N), describing terminal constraints
-        :param stage_sets: nonempty convex closed sets (C_t), describing state-control constraints
+        :param stage_sets: nonempty convex closed sets (C) which is the Cartesian product of sets (C_t), describing
+        state-control constraints
         :param terminal_set: nonempty convex closed set (C_N), describing terminal constraints
         """
         # check if state and control matrices have same number of rows

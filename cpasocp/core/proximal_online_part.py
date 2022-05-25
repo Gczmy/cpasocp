@@ -37,9 +37,10 @@ def proximal_of_h_online_part(prediction_horizon, proximal_lambda, initial_state
     q_seq[:, :, N] = q_0
 
     for t in range(N):
-        d_seq[:, :, N - t - 1] = np.linalg.inv(R_tilde_seq[:, :, N - t - 1]) \
-                                 @ (1 / proximal_lambda * w[(N - t) * (n_x + n_u) - n_u:(N - t) * (n_x + n_u)]
-                                    - B.T @ q_seq[:, :, N - t])
+        d_seq[:, :, N - t - 1] = np.linalg.solve(R_tilde_seq[:, :, N - t - 1],
+                                                 1 / proximal_lambda *
+                                                 w[(N - t) * (n_x + n_u) - n_u:(N - t) * (n_x + n_u)]
+                                                 - B.T @ q_seq[:, :, N - t])
 
         q_seq[:, :, N - t - 1] = K_seq[:, :, N - t - 1].T \
                                  @ ((R + 1 / proximal_lambda * np.eye(n_u)) @ d_seq[:, :, N - t - 1]

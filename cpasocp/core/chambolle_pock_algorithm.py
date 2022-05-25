@@ -1,6 +1,6 @@
 import numpy as np
 import cpasocp.core.proximal_online_part as core_online
-
+import matplotlib.pyplot as plt
 
 def proj_to_c(vector, prediction_horizon, stage_state, terminal_state, stage_sets, terminal_set):
     """
@@ -81,10 +81,11 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
 
     z_next = z0
     eta_next = eta0
-
+    n_max = 1000
+    residuals_cache = np.zeros((n_max, 3))
     loop_end = False
 
-    while loop_end is False:
+    for i in range(n_max):
         z_prev = z_next
         eta_prev = eta_next
         z_next = core_online.proximal_of_h_online_part(prediction_horizon=prediction_horizon,
@@ -105,8 +106,23 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
         # Termination criteria
         xi_1 = (z_next - z_prev) / alpha_1 - Phi_star @ (eta_prev - eta_next)
         xi_2 = (eta_prev - eta_next) / alpha_1 + Phi @ (z_next - z_prev)
-        if np.linalg.norm(xi_1, np.inf) <= epsilon and np.linalg.norm(xi_2, np.inf) <= epsilon \
-                and np.linalg.norm(xi_1 + Phi_star @ xi_2, np.inf) <= epsilon:
-            loop_end = True
+        xi_gap = xi_1 + Phi_star @ xi_2
+        t_1 = np.linalg.norm(xi_1, np.inf)
+        t_2 = np.linalg.norm(xi_2, np.inf)
+        t_3 = np.linalg.norm(xi_gap, np.inf)
+        residuals_cache[i, 0] = t_1
+        residuals_cache[i, 1] = t_2
+        residuals_cache[i, 2] = t_3
 
+        if t_1 <= epsilon and t_2 <= epsilon and t_3 <= epsilon:
+            break
+    residuals_cache = residuals_cache[0:i, :]
+
+    # plot
+    plt.xlabel('Iterations')
+    plt.ylabel('Residuals')
+    plt.plot(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
+    # plt.semilogy(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
+    plt.legend()
+    plt.show()
     return z_next, eta_next

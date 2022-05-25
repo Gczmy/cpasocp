@@ -108,7 +108,7 @@ class ProximalOfflinePart:
 
         for i in range(N):
             R_tilde_seq[:, :, N - i - 1] = R + 1 / self.__lambda * np.eye(n_u) + B.T @ P_seq[:, :, N - i] @ B
-            K_seq[:, :, N - i - 1] = - np.linalg.inv(R_tilde_seq[:, :, N - i - 1]) @ B.T @ P_seq[:, :, N - i] @ A
+            K_seq[:, :, N - i - 1] = - np.linalg.solve(R_tilde_seq[:, :, N - i - 1], B.T @ P_seq[:, :, N - i] @ A)
             A_bar_seq[:, :, N - i - 1] = A + B @ K_seq[:, :, N - i - 1]
             P_seq[:, :, N - i - 1] = Q + 1 / self.__lambda * np.eye(n_x) \
                                      + K_seq[:, :, N - i - 1].T @ (R + np.eye(n_u)) @ K_seq[:, :, N - i - 1] \
