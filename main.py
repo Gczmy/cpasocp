@@ -8,7 +8,7 @@ import cpasocp.core.sets as core_sets
 
 # dynamics
 prediction_horizon = 10
-proximal_lambda = 4
+proximal_lambda = 1e10
 A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
 B = np.array([[1, 1], [0.5, 1]])  # n x u matrices
 
@@ -32,6 +32,7 @@ x0 = np.array([0.2, 0.5])
 
 # algorithm parameters
 epsilon = 1e-5
+
 n_z = (prediction_horizon + 1) * A.shape[1] + prediction_horizon * B.shape[1]
 z0 = np.ones((n_z, 1))
 for i in range(x0.shape[0]):
@@ -47,4 +48,4 @@ solution = cpa.core.CPASOCP(prediction_horizon) \
 
 print(solution)
 print(solution.get_z_value)
-# print(solution.get_eta_value)
+print(solution.get_eta_value)

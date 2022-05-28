@@ -77,6 +77,7 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
         raise ValueError("Initial guess vector eta row is not correct")
 
     # Choose α1, α2 > 0 such that α1α2∥Phi∥^2 < 1
+    n_z = initial_guess_z.shape[0]
     alpha_1 = 0.99 / np.linalg.norm(Phi @ np.eye(n_z) * 0.1)
     alpha_2 = 0.99 / np.linalg.norm(Phi @ np.eye(n_z) * 0.1)
 
@@ -119,10 +120,10 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
     residuals_cache = residuals_cache[0:i, :]
 
     # plot
-    # plt.xlabel('Iterations')
-    # plt.ylabel('Residuals')
+    plt.xlabel('Iterations')
+    plt.ylabel('Residuals')
     # plt.plot(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
-    # # plt.semilogy(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
-    # plt.legend()
-    # plt.show()
+    plt.semilogy(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
+    plt.legend()
+    plt.show()
     return z_next, eta_next

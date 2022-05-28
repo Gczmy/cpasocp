@@ -1,3 +1,4 @@
+import numpy as np
 import cpasocp.core.dynamics as core_dynamics
 import cpasocp.core.costs as core_costs
 import cpasocp.core.constraints as core_constraints

@@ -110,9 +110,8 @@ class ProximalOfflinePart:
             R_tilde_seq[:, :, N - i - 1] = R + 1 / self.__lambda * np.eye(n_u) + B.T @ P_seq[:, :, N - i] @ B
             K_seq[:, :, N - i - 1] = - np.linalg.solve(R_tilde_seq[:, :, N - i - 1], B.T @ P_seq[:, :, N - i] @ A)
             A_bar_seq[:, :, N - i - 1] = A + B @ K_seq[:, :, N - i - 1]
-            P_seq[:, :, N - i - 1] = Q + 1 / self.__lambda * np.eye(n_x) \
-                                     + K_seq[:, :, N - i - 1].T @ (R + 1 / self.__lambda * np.eye(n_u)) \
-                                     @ K_seq[:, :, N - i - 1] + A_bar_seq[:, :, N - i - 1].T @ P_seq[:, :, N - i - 1] \
-                                     @ A_bar_seq[:, :, N - i - 1]
+            P_seq[:, :, N - i - 1] = Q + 1 / self.__lambda * np.eye(n_x) + K_seq[:, :, N - i - 1].T \
+                                     @ (R + 1 / self.__lambda * np.eye(n_u)) @ K_seq[:, :, N - i - 1] \
+                                     + A_bar_seq[:, :, N - i - 1].T @ P_seq[:, :, N - i] @ A_bar_seq[:, :, N - i - 1]
 
         return P_seq, R_tilde_seq, K_seq, A_bar_seq

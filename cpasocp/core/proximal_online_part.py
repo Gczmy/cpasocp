@@ -30,25 +30,24 @@ def proximal_of_h_online_part(prediction_horizon, proximal_lambda, initial_state
     if x_0.shape[0] != n_x:
         raise ValueError("Initial state x0 row is not correct")
 
-    q_0 = - 1 / proximal_lambda * w[N * (n_x + n_u): N * (n_x + n_u) + n_x]
+    chi_N = w[N * (n_x + n_u): N * (n_x + n_u) + n_x]
+    q_0 = - 1 / proximal_lambda * chi_N
 
     q_seq = np.zeros((n_x, 1, N + 1))  # tensor
     d_seq = np.zeros((n_x, 1, N))  # tensor
     q_seq[:, :, N] = q_0
 
     for t in range(N):
-        d_seq[:, :, N - t - 1] = np.linalg.solve(R_tilde_seq[:, :, N - t - 1],
-                                                 1 / proximal_lambda *
-                                                 w[(N - t) * (n_x + n_u) - n_u:(N - t) * (n_x + n_u)]
-                                                 - B.T @ q_seq[:, :, N - t])
+        v = w[(N - t - 1) * (n_x + n_u) + n_x: (N - t) * (n_x + n_u)]
+        chi = w[(N - t - 1) * (n_x + n_u): (N - t - 1) * (n_x + n_u) + n_x]
+        d_seq[:, :, N - t - 1] = np.linalg.solve(R_tilde_seq[:, :, N - t - 1], 1 / proximal_lambda * v - B.T
+                                                 @ q_seq[:, :, N - t])
 
         q_seq[:, :, N - t - 1] = K_seq[:, :, N - t - 1].T \
                                  @ ((R + 1 / proximal_lambda * np.eye(n_u)) @ d_seq[:, :, N - t - 1]
-                                    - 1 / proximal_lambda * w[(N - t - 1) * (n_x + n_u)
-                                                              :(N - t - 1) * (n_x + n_u) + n_x]) \
-                                 + 1 / proximal_lambda * w[(N - t) * (n_x + n_u) - n_u:(N - t) * (n_x + n_u)] \
+                                    - 1 / proximal_lambda * v) + 1 / proximal_lambda * chi \
                                  + A_bar_seq[:, :, N - t - 1].T @ (P_seq[:, :, N - t] @ B @ d_seq[:, :, N - t - 1]
-                                                                 + q_seq[:, :, N - t])
+                                                                   + q_seq[:, :, N - t])
     x_seq = np.zeros((n_x, 1, N + 1))  # tensor
     u_seq = np.zeros((n_x, 1, N))  # tensor
     x_seq[:, :, N] = np.reshape(x_0, (n_x, 1))
