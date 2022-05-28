@@ -47,24 +47,17 @@ def proximal_of_h_online_part(prediction_horizon, proximal_lambda, initial_state
                                     - 1 / proximal_lambda * w[(N - t - 1) * (n_x + n_u)
                                                               :(N - t - 1) * (n_x + n_u) + n_x]) \
                                  + 1 / proximal_lambda * w[(N - t) * (n_x + n_u) - n_u:(N - t) * (n_x + n_u)] \
-                                 + A_bar_seq[:, :, N - t - 1] @ (P_seq[:, :, N - t] @ B @ d_seq[:, :, N - t - 1]
+                                 + A_bar_seq[:, :, N - t - 1].T @ (P_seq[:, :, N - t] @ B @ d_seq[:, :, N - t - 1]
                                                                  + q_seq[:, :, N - t])
     x_seq = np.zeros((n_x, 1, N + 1))  # tensor
     u_seq = np.zeros((n_x, 1, N))  # tensor
     x_seq[:, :, N] = np.reshape(x_0, (n_x, 1))
-
+    # Construct Proximal of h at w
+    prox = np.reshape(x_seq[:, :, N], (n_x, 1))  # x_0
     for t in range(N):
         u_seq[:, :, N - t - 1] = K_seq[:, :, t] @ x_seq[:, :, N - t] + d_seq[:, :, t]
         x_seq[:, :, N - t - 1] = A @ x_seq[:, :, N - t] + B @ u_seq[:, :, N - t - 1]
-
-    # Construct Proximal of h at w
-    prox = np.reshape(x_seq[:, :, 0], (n_x, 1))  # x_0
-    prox = np.vstack((prox, np.reshape(u_seq[:, :, 0], (n_u, 1))))  # u_0
-
-    for i in range(1, N):
-        prox = np.vstack((prox, np.reshape(x_seq[:, :, 0], (n_x, 1))))
-        prox = np.vstack((prox, np.reshape(u_seq[:, :, 0], (n_u, 1))))
-
-    prox = np.vstack((prox, np.reshape(x_seq[:, :, 0], (n_x, 1))))  # xN
+        prox = np.vstack((prox, np.reshape(u_seq[:, :, N - t - 1], (n_u, 1))))
+        prox = np.vstack((prox, np.reshape(x_seq[:, :, N - t - 1], (n_x, 1))))
 
     return prox

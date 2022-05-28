@@ -28,7 +28,7 @@ class ProximalOfflinePart:
         self.__Gamma_u = stage_control
         self.__Gamma_N = terminal_state
         self.make_Phi()
-        self.make_Phi_star()
+        self.make_Phi_adj()
         self.algorithm()
 
     def make_Phi(self):
@@ -59,8 +59,8 @@ class ProximalOfflinePart:
 
         return lingalg.LinearOperator((n_Phi, n_z), matvec=matvec)
 
-    def make_Phi_star(self):
-        """Construct LinearOperator Phi_star"""
+    def make_Phi_adj(self):
+        """Construct LinearOperator adjoint Phi_adj"""
         N = self.__prediction_horizon
         Gamma_x = self.__Gamma_x
         Gamma_u = self.__Gamma_u
@@ -73,19 +73,19 @@ class ProximalOfflinePart:
         n_Phi = N * n_c + n_f
 
         def matvec(v):
-            Phi_star_x = np.reshape(Gamma_x.T @ v[0:n_c], (n_x, 1))
-            Phi_star_u = np.reshape(Gamma_u.T @ v[0:n_c], (n_u, 1))
-            Phi_star = np.vstack((Phi_star_x, Phi_star_u))
+            Phi_adj_x = np.reshape(Gamma_x.T @ v[0:n_c], (n_x, 1))
+            Phi_adj_u = np.reshape(Gamma_u.T @ v[0:n_c], (n_u, 1))
+            Phi_adj = np.vstack((Phi_adj_x, Phi_adj_u))
 
             for i in range(1, N):
                 phi_n_x = np.reshape(Gamma_x.T @ v[(i + 1) * n_c:(i + 2) * n_c], (n_x, 1))
                 phi_n_u = np.reshape(Gamma_u.T @ v[(i + 1) * n_c:(i + 2) * n_c], (n_u, 1))
-                Phi_star = np.vstack((Phi_star, phi_n_x, phi_n_u))
+                Phi_adj = np.vstack((Phi_adj, phi_n_x, phi_n_u))
 
-            Phi_star_N = np.reshape(Gamma_N.T @ v[N * n_c:(N + 1) * n_c], (n_x, 1))
-            Phi_star = np.vstack((Phi_star, Phi_star_N))
+            Phi_adj_N = np.reshape(Gamma_N.T @ v[N * n_c:(N + 1) * n_c], (n_x, 1))
+            Phi_adj = np.vstack((Phi_adj, Phi_adj_N))
 
-            return Phi_star
+            return Phi_adj
 
         return lingalg.LinearOperator((n_z, n_Phi), matvec=matvec)
 
@@ -111,8 +111,8 @@ class ProximalOfflinePart:
             K_seq[:, :, N - i - 1] = - np.linalg.solve(R_tilde_seq[:, :, N - i - 1], B.T @ P_seq[:, :, N - i] @ A)
             A_bar_seq[:, :, N - i - 1] = A + B @ K_seq[:, :, N - i - 1]
             P_seq[:, :, N - i - 1] = Q + 1 / self.__lambda * np.eye(n_x) \
-                                     + K_seq[:, :, N - i - 1].T @ (R + np.eye(n_u)) @ K_seq[:, :, N - i - 1] \
-                                     + A_bar_seq[:, :, N - i - 1].T @ P_seq[:, :, N - i - 1] @ A_bar_seq[:, :,
-                                                                                               N - i - 1]
+                                     + K_seq[:, :, N - i - 1].T @ (R + 1 / self.__lambda * np.eye(n_u)) \
+                                     @ K_seq[:, :, N - i - 1] + A_bar_seq[:, :, N - i - 1].T @ P_seq[:, :, N - i - 1] \
+                                     @ A_bar_seq[:, :, N - i - 1]
 
         return P_seq, R_tilde_seq, K_seq, A_bar_seq

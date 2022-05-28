@@ -2,6 +2,7 @@ import numpy as np
 import cpasocp.core.proximal_online_part as core_online
 import matplotlib.pyplot as plt
 
+
 def proj_to_c(vector, prediction_horizon, stage_state, terminal_state, stage_sets, terminal_set):
     """
     :param vector: the vector to be projected to sets (C_t) and C_N
@@ -31,7 +32,7 @@ def proj_to_c(vector, prediction_horizon, stage_state, terminal_state, stage_set
 #     return tau
 
 
-def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta, Phi, Phi_z, Phi_star,
+def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta, Phi, Phi_z, Phi_adj,
                                      prediction_horizon, initial_state, state_dynamics, control_dynamics,
                                      control_weight, P_seq, R_tilde_seq, K_seq, A_bar_seq, stage_state, terminal_state,
                                      stage_sets, terminal_set):
@@ -41,7 +42,7 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
     :param initial_guess_eta: vector initial guess of (eta0) of Chambolle-Pock algorithm
     :param Phi: LinearOperator of (Phi) of Chambolle-Pock algorithm
     :param Phi_z: vector of (Phi_z) of Chambolle-Pock algorithm
-    :param Phi_star: LinearOperator of (Phi_star) of Chambolle-Pock algorithm
+    :param Phi_adj: LinearOperator adjoint of (Phi_adj) of Chambolle-Pock algorithm
     :param prediction_horizon: prediction horizon (N) of dynamic system
     :param initial_state: initial state of dynamic system
     :param state_dynamics: matrix (A), describing the state dynamics
@@ -76,14 +77,13 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
         raise ValueError("Initial guess vector eta row is not correct")
 
     # Choose α1, α2 > 0 such that α1α2∥Phi∥^2 < 1
-    alpha_1 = 0.99 / np.linalg.norm(Phi @ np.eye(n_z) * 0.2)
-    alpha_2 = 0.99 / np.linalg.norm(Phi @ np.eye(n_z) * 0.2)
+    alpha_1 = 0.99 / np.linalg.norm(Phi @ np.eye(n_z) * 0.1)
+    alpha_2 = 0.99 / np.linalg.norm(Phi @ np.eye(n_z) * 0.1)
 
     z_next = z0
     eta_next = eta0
     n_max = 1000
     residuals_cache = np.zeros((n_max, 3))
-    loop_end = False
 
     for i in range(n_max):
         z_prev = z_next
@@ -91,7 +91,7 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
         z_next = core_online.proximal_of_h_online_part(prediction_horizon=prediction_horizon,
                                                        proximal_lambda=alpha_1,
                                                        initial_state=x0,
-                                                       initial_guess_vector=z_prev - alpha_1 * Phi_star @ eta_prev,
+                                                       initial_guess_vector=z_prev - alpha_1 * Phi_adj @ eta_prev,
                                                        state_dynamics=A,
                                                        control_dynamics=B,
                                                        control_weight=R,
@@ -104,9 +104,9 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
                                                        stage_state, terminal_state, C_t, C_N)
 
         # Termination criteria
-        xi_1 = (z_next - z_prev) / alpha_1 - Phi_star @ (eta_prev - eta_next)
+        xi_1 = (z_next - z_prev) / alpha_1 - Phi_adj @ (eta_prev - eta_next)
         xi_2 = (eta_prev - eta_next) / alpha_1 + Phi @ (z_next - z_prev)
-        xi_gap = xi_1 + Phi_star @ xi_2
+        xi_gap = xi_1 + Phi_adj @ xi_2
         t_1 = np.linalg.norm(xi_1, np.inf)
         t_2 = np.linalg.norm(xi_2, np.inf)
         t_3 = np.linalg.norm(xi_gap, np.inf)
@@ -119,10 +119,10 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
     residuals_cache = residuals_cache[0:i, :]
 
     # plot
-    plt.xlabel('Iterations')
-    plt.ylabel('Residuals')
-    plt.plot(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
-    # plt.semilogy(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
-    plt.legend()
-    plt.show()
+    # plt.xlabel('Iterations')
+    # plt.ylabel('Residuals')
+    # plt.plot(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
+    # # plt.semilogy(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
+    # plt.legend()
+    # plt.show()
     return z_next, eta_next

@@ -99,11 +99,11 @@ class CPASOCP:
                                                self.__R, self.__P, self.__Gamma_x, self.__Gamma_u,
                                                self.__Gamma_N).make_Phi()
         Phi_z = Phi * initial_guess_z
-        Phi_star = core_offline.ProximalOfflinePart(self.__prediction_horizon, proximal_lambda, self.__A, self.__B,
+        Phi_adj = core_offline.ProximalOfflinePart(self.__prediction_horizon, proximal_lambda, self.__A, self.__B,
                                                     self.__Q, self.__R, self.__P, self.__Gamma_x, self.__Gamma_u,
-                                                    self.__Gamma_N).make_Phi_star()
+                                                    self.__Gamma_N).make_Phi_adj()
         self.__z, self.__eta = core_cpa.chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta,
-                                                                         Phi, Phi_z, Phi_star,
+                                                                         Phi, Phi_z, Phi_adj,
                                                                          self.__prediction_horizon, initial_state,
                                                                          self.__A, self.__B, self.__R, P_seq,
                                                                          R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
