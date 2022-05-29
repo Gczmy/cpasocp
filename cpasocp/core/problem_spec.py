@@ -2,6 +2,7 @@ import numpy as np
 import cpasocp.core.dynamics as core_dynamics
 import cpasocp.core.costs as core_costs
 import cpasocp.core.constraints as core_constraints
+import cpasocp.core.linear_operators as core_lin_op
 import cpasocp.core.proximal_offline_part as core_offline
 import cpasocp.core.chambolle_pock_algorithm as core_cpa
 
@@ -90,25 +91,27 @@ class CPASOCP:
 
     # Chambolle-Pock algorithm for Optimal Control Problems -----------------------------------------------------------
 
-    def chambolle_pock_algorithm(self, proximal_lambda, epsilon, initial_state, initial_guess_z, initial_guess_eta):
+    def chambolle_pock_algorithm(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
+        n_z = initial_guess_z.shape[0]
+
+        L = core_lin_op.LinearOperator(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u,
+                                       self.__Gamma_N).make_L_op()
+        L_z = L * initial_guess_z
+        L_adj = core_lin_op.LinearOperator(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x,
+                                           self.__Gamma_u, self.__Gamma_N).make_L_adj()
+        # Choose α1, α2 > 0 such that α1α2∥L∥^2 < 1
+        alpha = 0.99 / np.linalg.norm(0.1 * L @ np.eye(n_z))
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(self.__prediction_horizon,
-                                                                                proximal_lambda, self.__A, self.__B,
-                                                                                self.__Q, self.__R, self.__P,
-                                                                                self.__Gamma_x, self.__Gamma_u,
-                                                                                self.__Gamma_N).algorithm()
-        Phi = core_offline.ProximalOfflinePart(self.__prediction_horizon, proximal_lambda, self.__A, self.__B, self.__Q,
-                                               self.__R, self.__P, self.__Gamma_x, self.__Gamma_u,
-                                               self.__Gamma_N).make_Phi()
-        Phi_z = Phi * initial_guess_z
-        Phi_adj = core_offline.ProximalOfflinePart(self.__prediction_horizon, proximal_lambda, self.__A, self.__B,
-                                                    self.__Q, self.__R, self.__P, self.__Gamma_x, self.__Gamma_u,
-                                                    self.__Gamma_N).make_Phi_adj()
+                                                                                alpha, self.__A, self.__B,
+                                                                                self.__Q, self.__R,
+                                                                                self.__P).algorithm()
         self.__z, self.__eta = core_cpa.chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta,
-                                                                         Phi, Phi_z, Phi_adj,
-                                                                         self.__prediction_horizon, initial_state,
-                                                                         self.__A, self.__B, self.__R, P_seq,
-                                                                         R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
-                                                                         self.__Gamma_N, self.__C_t, self.__C_N)
+                                                                         alpha,
+                                                                         L, L_z, L_adj, self.__prediction_horizon,
+                                                                         initial_state, self.__A, self.__B, self.__R,
+                                                                         P_seq, R_tilde_seq, K_seq, A_bar_seq,
+                                                                         self.__Gamma_x, self.__Gamma_N, self.__C_t,
+                                                                         self.__C_N)
         return self
 
     # Class ------------------------------------------------------------------------------------------------------------

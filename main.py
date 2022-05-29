@@ -8,7 +8,6 @@ import cpasocp.core.sets as core_sets
 
 # dynamics
 prediction_horizon = 10
-proximal_lambda = 1e10
 A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
 B = np.array([[1, 1], [0.5, 1]])  # n x u matrices
 
@@ -16,7 +15,6 @@ B = np.array([[1, 1], [0.5, 1]])  # n x u matrices
 cost_type = "Quadratic"
 Q = 10 * np.eye(2)  # n x n matrix
 R = np.eye(2)  # u x u matrix OR scalar
-# R = np.zeros(2)  # u x u matrix OR scalar
 P = 5 * np.eye(2)  # n x n matrix
 
 # constraints
@@ -44,7 +42,7 @@ solution = cpa.core.CPASOCP(prediction_horizon) \
     .with_dynamics(A, B) \
     .with_cost(cost_type, Q, R, P) \
     .with_constraints(Gamma_x, Gamma_u, Gamma_N, stage_sets, terminal_set) \
-    .chambolle_pock_algorithm(proximal_lambda, epsilon, x0, z0, eta0)
+    .chambolle_pock_algorithm(epsilon, x0, z0, eta0)
 
 print(solution)
 print(solution.get_z_value)
