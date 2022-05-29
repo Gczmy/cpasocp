@@ -2,7 +2,8 @@ import numpy as np
 
 
 def proximal_of_h_online_part(prediction_horizon, proximal_lambda, initial_state, initial_guess_vector, state_dynamics,
-                              control_dynamics, control_weight, P_seq, R_tilde_seq, K_seq, A_bar_seq):
+                              control_dynamics, control_weight, P_seq, R_tilde_Cholesky_seq, K_seq,
+                              A_bar_seq):
     """
     :param prediction_horizon: prediction horizon (N) of dynamic system
     :param proximal_lambda: a parameter lambda for proximal operator
@@ -12,7 +13,8 @@ def proximal_of_h_online_part(prediction_horizon, proximal_lambda, initial_state
     :param control_dynamics: matrix (B), describing control dynamics
     :param control_weight: scalar or matrix (R), input cost matrix or scalar
     :param P_seq: tensor, matrix sequence of (P) from proximal of h offline part
-    :param R_tilde_seq: tensor, matrix sequence of (R) from proximal of h offline part
+    :param R_tilde_Cholesky_seq: tensor, matrix sequence of the Cholesky decomposition of (R_tilde) from proximal of h
+    offline part
     :param K_seq: tensor, matrix sequence of (K) from proximal of h offline part
     :param A_bar_seq: tensor, matrix sequence of (A_bar) from proximal of h offline part
     """
@@ -40,8 +42,11 @@ def proximal_of_h_online_part(prediction_horizon, proximal_lambda, initial_state
     for t in range(N):
         v = w[(N - t - 1) * (n_x + n_u) + n_x: (N - t) * (n_x + n_u)]
         chi = w[(N - t - 1) * (n_x + n_u): (N - t - 1) * (n_x + n_u) + n_x]
-        d_seq[:, :, N - t - 1] = np.linalg.solve(R_tilde_seq[:, :, N - t - 1], 1 / proximal_lambda * v - B.T
+        y = np.linalg.solve(R_tilde_Cholesky_seq[:, :, N - t - 1], 1 / proximal_lambda * v - B.T
                                                  @ q_seq[:, :, N - t])
+        d_seq[:, :, N - t - 1] = np.linalg.solve(R_tilde_Cholesky_seq[:, :, N - t - 1].T.conj(), y)
+        # d_seq[:, :, N - t - 1] = np.linalg.solve(R_tilde_seq[:, :, N - t - 1], 1 / proximal_lambda * v - B.T
+        #                                          @ q_seq[:, :, N - t])
 
         q_seq[:, :, N - t - 1] = K_seq[:, :, N - t - 1].T \
                                  @ ((R + 1 / proximal_lambda * np.eye(n_u)) @ d_seq[:, :, N - t - 1]

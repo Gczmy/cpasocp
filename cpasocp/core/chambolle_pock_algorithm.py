@@ -17,13 +17,13 @@ def proj_to_c(vector, prediction_horizon, stage_state, terminal_state, stage_set
     n_c = stage_state.shape[0]
     n_f = terminal_state.shape[0]
     if type(stage_sets).__name__ == 'Cartesian':
-        vector_list = [None] * prediction_horizon
-        for i in range(prediction_horizon):
-            vector_list[i] = vector[i * n_c:(i + 1) * n_c]
+        vector_list = [None] * N
+        for i in range(N):
+            vector_list[i] = vector[i * n_c: (i + 1) * n_c]
         vector_stage = stage_sets.project(vector_list)
     else:
-        vector_stage = stage_sets.project(vector[0:N * n_c])
-    vector_terminal = terminal_set.project(vector[N * n_c:N * n_c + n_f])
+        vector_stage = stage_sets.project(vector[0: N * n_c])
+    vector_terminal = terminal_set.project(vector[N * n_c: N * n_c + n_f])
     vector = np.vstack((vector_stage, vector_terminal))
     return vector
 
@@ -35,7 +35,7 @@ def proj_to_c(vector, prediction_horizon, stage_state, terminal_state, stage_set
 
 def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_adj,
                                      prediction_horizon, initial_state, state_dynamics, control_dynamics,
-                                     control_weight, P_seq, R_tilde_seq, K_seq, A_bar_seq, stage_state, terminal_state,
+                                     control_weight, P_seq, R_tilde_Cholesky_seq, K_seq, A_bar_seq, stage_state, terminal_state,
                                      stage_sets, terminal_set):
     """
     :param epsilon: scalar (epsilon) of Chambolle-Pock algorithm
@@ -64,11 +64,12 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
     A = state_dynamics
     B = control_dynamics
     R = control_weight
+    Gamma_x = stage_state
+    Gamma_N = terminal_state
     C_t = stage_sets
     C_N = terminal_set
     n_x = A.shape[1]
     n_u = B.shape[1]
-    n_z = N * (n_x + n_u) + n_x
     n_L = L_z.shape[0]
     x0 = initial_state
     z0 = initial_guess_z
@@ -78,17 +79,15 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
     if eta0.shape[0] != n_L:
         raise ValueError("Initial guess vector eta row is not correct")
 
-    # Choose α1, α2 > 0 such that α1α2∥Phi∥^2 < 1
-
     z_next = z0
     eta_next = eta0
-    n_max = 1000
+    n_max = 10000
     residuals_cache = np.zeros((n_max, 3))
 
     for i in range(n_max):
         z_prev = z_next
         eta_prev = eta_next
-        z_next = core_online.proximal_of_h_online_part(prediction_horizon=prediction_horizon,
+        z_next = core_online.proximal_of_h_online_part(prediction_horizon=N,
                                                        proximal_lambda=alpha,
                                                        initial_state=x0,
                                                        initial_guess_vector=z_prev - alpha * L_adj @ eta_prev,
@@ -96,12 +95,11 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
                                                        control_dynamics=B,
                                                        control_weight=R,
                                                        P_seq=P_seq,
-                                                       R_tilde_seq=R_tilde_seq,
+                                                       R_tilde_Cholesky_seq=R_tilde_Cholesky_seq,
                                                        K_seq=K_seq,
                                                        A_bar_seq=A_bar_seq)
         eta_half_next = eta_prev + alpha * L @ (2 * z_next - z_prev)
-        eta_next = eta_half_next - alpha * proj_to_c(1 / alpha * eta_half_next, prediction_horizon, stage_state,
-                                                     terminal_state, C_t, C_N)
+        eta_next = eta_half_next - alpha * proj_to_c(1 / alpha * eta_half_next, N, Gamma_x, Gamma_N, C_t, C_N)
 
         # Termination criteria
         xi_1 = (z_next - z_prev) / alpha - L_adj @ (eta_prev - eta_next)
@@ -121,8 +119,8 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
     # plot
     plt.xlabel('Iterations')
     plt.ylabel('Residuals')
-    # plt.plot(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
-    plt.semilogy(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
+    plt.plot(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
+    # plt.semilogy(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
     plt.legend()
     plt.show()
     return z_next, eta_next

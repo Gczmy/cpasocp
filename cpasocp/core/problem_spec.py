@@ -105,15 +105,16 @@ class CPASOCP:
         L_norm = np.linalg.norm(L @ L_vec)
         alpha = 0.99 / L_norm
 
-        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(self.__prediction_horizon,
-                                                                                alpha, self.__A, self.__B,
-                                                                                self.__Q, self.__R,
-                                                                                self.__P).algorithm()
+        P_seq, R_tilde_Cholesky_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
+            self.__prediction_horizon,
+            alpha, self.__A, self.__B,
+            self.__Q, self.__R,
+            self.__P).algorithm()
         self.__z, self.__eta = core_cpa.chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta,
-                                                                         alpha,
-                                                                         L, L_z, L_adj, self.__prediction_horizon,
-                                                                         initial_state, self.__A, self.__B, self.__R,
-                                                                         P_seq, R_tilde_seq, K_seq, A_bar_seq,
+                                                                         alpha, L, L_z, L_adj,
+                                                                         self.__prediction_horizon, initial_state,
+                                                                         self.__A, self.__B, self.__R, P_seq,
+                                                                         R_tilde_Cholesky_seq, K_seq, A_bar_seq,
                                                                          self.__Gamma_x, self.__Gamma_N, self.__C_t,
                                                                          self.__C_N)
         return self

@@ -35,6 +35,7 @@ class ProximalOfflinePart:
         N = self.__prediction_horizon
         P_seq = np.zeros((n_x, n_x, N + 1))  # tensor
         R_tilde_seq = np.zeros((n_x, n_x, N))  # tensor
+        R_tilde_Cholesky_seq = np.zeros((n_x, n_x, N))  # tensor
         K_seq = np.zeros((n_x, n_x, N))  # tensor
         A_bar_seq = np.zeros((n_x, n_x, N))  # tensor
         P_0 = P + self.__lambda * np.eye(n_x)
@@ -42,10 +43,11 @@ class ProximalOfflinePart:
 
         for i in range(N):
             R_tilde_seq[:, :, N - i - 1] = R + 1 / self.__lambda * np.eye(n_u) + B.T @ P_seq[:, :, N - i] @ B
+            R_tilde_Cholesky_seq[:, :, N - i - 1] = np.linalg.cholesky(R_tilde_seq[:, :, N - i - 1])
             K_seq[:, :, N - i - 1] = - np.linalg.solve(R_tilde_seq[:, :, N - i - 1], B.T @ P_seq[:, :, N - i] @ A)
             A_bar_seq[:, :, N - i - 1] = A + B @ K_seq[:, :, N - i - 1]
             P_seq[:, :, N - i - 1] = Q + 1 / self.__lambda * np.eye(n_x) + K_seq[:, :, N - i - 1].T \
                                      @ (R + 1 / self.__lambda * np.eye(n_u)) @ K_seq[:, :, N - i - 1] \
                                      + A_bar_seq[:, :, N - i - 1].T @ P_seq[:, :, N - i] @ A_bar_seq[:, :, N - i - 1]
 
-        return P_seq, R_tilde_seq, K_seq, A_bar_seq
+        return P_seq, R_tilde_Cholesky_seq, K_seq, A_bar_seq

@@ -32,11 +32,11 @@ x0 = np.array([0.2, 0.5])
 epsilon = 1e-5
 
 n_z = (prediction_horizon + 1) * A.shape[1] + prediction_horizon * B.shape[1]
-z0 = np.ones((n_z, 1))
+z0 = np.zeros((n_z, 1))
 for i in range(x0.shape[0]):
     z0[i] = x0[i]
 n_Phi = prediction_horizon * Gamma_x.shape[0] + Gamma_N.shape[0]
-eta0 = np.ones((n_Phi, 1))
+eta0 = np.zeros((n_Phi, 1))
 
 solution = cpa.core.CPASOCP(prediction_horizon) \
     .with_dynamics(A, B) \
