@@ -100,7 +100,11 @@ class CPASOCP:
         L_adj = core_lin_op.LinearOperator(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x,
                                            self.__Gamma_u, self.__Gamma_N).make_L_adj()
         # Choose α1, α2 > 0 such that α1α2∥L∥^2 < 1
-        alpha = 0.99 / np.linalg.norm(0.1 * L @ np.eye(n_z))
+        L_vec = np.random.randn(n_z).reshape((n_z, 1))
+        L_vec = L_vec / np.linalg.norm(L_vec)
+        L_norm = np.linalg.norm(L @ L_vec)
+        alpha = 0.99 / L_norm
+
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(self.__prediction_horizon,
                                                                                 alpha, self.__A, self.__B,
                                                                                 self.__Q, self.__R,
