@@ -31,6 +31,7 @@ class CPASOCP:
         self.__C_t = None
         self.__C_N = None
         self.__constraints = None
+        self.__residuals_cache = None
         self.__z = None
         self.__eta = None
 
@@ -54,6 +55,10 @@ class CPASOCP:
     @property
     def get_eta_value(self):
         return self.__eta
+
+    @property
+    def get_residuals_cache(self):
+        return self.__residuals_cache
 
     # Dynamics ---------------------------------------------------------------------------------------------------------
 
@@ -110,13 +115,23 @@ class CPASOCP:
             alpha, self.__A, self.__B,
             self.__Q, self.__R,
             self.__P).algorithm()
-        self.__z, self.__eta = core_cpa.chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta,
-                                                                         alpha, L, L_z, L_adj,
-                                                                         self.__prediction_horizon, initial_state,
-                                                                         self.__A, self.__B, self.__R, P_seq,
-                                                                         R_tilde_Cholesky_seq, K_seq, A_bar_seq,
-                                                                         self.__Gamma_x, self.__Gamma_N, self.__C_t,
-                                                                         self.__C_N)
+        self.__residuals_cache, self.__z, self.__eta = core_cpa.chambolle_pock_algorithm_for_ocp(
+            epsilon,
+            initial_guess_z,
+            initial_guess_eta,
+            alpha, L, L_z, L_adj,
+            self.__prediction_horizon,
+            initial_state,
+            self.__A, self.__B,
+            self.__R,
+            P_seq,
+            R_tilde_Cholesky_seq,
+            K_seq,
+            A_bar_seq,
+            self.__Gamma_x,
+            self.__Gamma_N,
+            self.__C_t,
+            self.__C_N)
         return self
 
     # Class ------------------------------------------------------------------------------------------------------------

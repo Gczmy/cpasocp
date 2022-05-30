@@ -1,6 +1,5 @@
 import numpy as np
 import cpasocp.core.proximal_online_part as core_online
-import matplotlib.pyplot as plt
 
 
 def proj_to_c(vector, prediction_horizon, stage_state, terminal_state, stage_sets, terminal_set):
@@ -116,11 +115,4 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
             break
     residuals_cache = residuals_cache[0:i, :]
 
-    # plot
-    plt.xlabel('Iterations')
-    plt.ylabel('Residuals')
-    plt.plot(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
-    # plt.semilogy(residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
-    plt.legend()
-    plt.show()
-    return z_next, eta_next
+    return residuals_cache, z_next, eta_next

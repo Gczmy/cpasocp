@@ -15,21 +15,25 @@ class TestOnlinePart(unittest.TestCase):
     def test_online_part(self):
         tol = 1e-2
 
-        prediction_horizon = 10
-        proximal_lambda = 10
+        prediction_horizon = 60
+        n_x = 20
+        n_u = 10
+        n_c = 15
+        n_f = 15
+        # A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
+        A = np.array(np.random.rand(n_x, n_x))  # n x n matrices
+        # B = np.array([[1, 1], [0.5, 1]])  # n x u matrices
+        B = np.array(np.random.rand(n_x, n_u))  # n x u matrices
 
-        A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
-        B = np.array([[1, 1], [0.5, 1]])  # n x u matrices
+        Q = 10 * np.eye(n_x)  # n x n matrix
+        R = np.eye(n_u)  # u x u matrix OR scalar
+        P = 5 * np.eye(n_x)  # n x n matrix
 
-        Q = 10 * np.eye(2)  # n x n matrix
-        R = np.eye(2)  # u x u matrix OR scalar
-        P = 5 * np.eye(2)  # n x n matrix
+        Gamma_x = np.ones((n_c, n_x))  # n_c x n_x matrix
+        Gamma_u = np.ones((n_c, n_u))  # n_c x n_u matrix
+        Gamma_N = np.ones((n_f, n_x))  # n_f x n_x matrix
 
-        Gamma_x = np.eye(2)  # n_c x n_x matrix
-        Gamma_u = np.eye(2)  # n_c x n_u matrix
-        Gamma_N = np.eye(2)  # n_f x n_x matrix
-
-        initial_state = np.array([0.2, 0.5])
+        initial_state = np.array(np.random.rand(n_x))
         n_z = (prediction_horizon + 1) * A.shape[1] + prediction_horizon * B.shape[1]
         z0 = np.zeros((n_z, 1))
         for i in range(initial_state.shape[0]):
@@ -44,7 +48,7 @@ class TestOnlinePart(unittest.TestCase):
         L_norm = np.linalg.norm(L @ L_vec)
         alpha = 0.99 / L_norm
 
-        P_seq, R_tilde_Cholesky_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(prediction_horizon, 1e20, A,
+        P_seq, R_tilde_Cholesky_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(prediction_horizon, alpha, A,
                                                                                          B,
                                                                                          Q, R, P).algorithm()
         # solving OCP by cvxpy
@@ -52,10 +56,10 @@ class TestOnlinePart(unittest.TestCase):
         N = prediction_horizon
         n_x = A.shape[1]
         n_u = B.shape[1]
-        c_t_min = np.array([-2, -2])
-        c_t_max = np.array([2, 2])
-        c_N_min = np.array([-2, -2])
-        c_N_max = np.array([2, 2])
+        c_t_min = - 2 * np.ones(n_c)
+        c_t_max = 2 * np.ones(n_c)
+        c_N_min = - 2 * np.ones(n_f)
+        c_N_max = 2 * np.ones(n_f)
         # Problem statement
         x0_cp = cp.Parameter(n_x)  # <--- x is a parameter of the optimisation problem P_N(x)
         u_seq = cp.Variable((n_u, N))  # <--- sequence of control actions
@@ -93,7 +97,7 @@ class TestOnlinePart(unittest.TestCase):
         z_cp = np.vstack((z_cp, np.reshape(x_seq.value[:, N], (n_x, 1))))  # xN
 
         z_online_part = core_online.proximal_of_h_online_part(prediction_horizon=prediction_horizon,
-                                                              proximal_lambda=alpha,
+                                                              proximal_lambda=1e20,
                                                               initial_state=initial_state,
                                                               initial_guess_vector=z0,
                                                               state_dynamics=A,
@@ -107,6 +111,7 @@ class TestOnlinePart(unittest.TestCase):
         # for i in range(n_z):
         #     self.assertAlmostEqual(z_cp[i, 0], z_online_part[i, 0], delta=tol)
         print(z_online_part)
+        print(z_cp)
 
 
 if __name__ == '__main__':

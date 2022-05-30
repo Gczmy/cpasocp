@@ -34,17 +34,17 @@ class ProximalOfflinePart:
         n_u = B.shape[1]
         N = self.__prediction_horizon
         P_seq = np.zeros((n_x, n_x, N + 1))  # tensor
-        R_tilde_seq = np.zeros((n_x, n_x, N))  # tensor
-        R_tilde_Cholesky_seq = np.zeros((n_x, n_x, N))  # tensor
-        K_seq = np.zeros((n_x, n_x, N))  # tensor
+        R_tilde_Cholesky_seq = np.zeros((n_u, n_u, N))  # tensor
+        K_seq = np.zeros((n_u, n_x, N))  # tensor
         A_bar_seq = np.zeros((n_x, n_x, N))  # tensor
         P_0 = P + self.__lambda * np.eye(n_x)
         P_seq[:, :, N] = P_0
 
         for i in range(N):
-            R_tilde_seq[:, :, N - i - 1] = R + 1 / self.__lambda * np.eye(n_u) + B.T @ P_seq[:, :, N - i] @ B
-            R_tilde_Cholesky_seq[:, :, N - i - 1] = np.linalg.cholesky(R_tilde_seq[:, :, N - i - 1])
-            K_seq[:, :, N - i - 1] = - np.linalg.solve(R_tilde_seq[:, :, N - i - 1], B.T @ P_seq[:, :, N - i] @ A)
+            R_tilde_seq = R + 1 / self.__lambda * np.eye(n_u) + B.T @ P_seq[:, :, N - i] @ B
+            R_tilde_Cholesky_seq[:, :, N - i - 1] = np.linalg.cholesky(R_tilde_seq)
+            y = np.linalg.solve(R_tilde_Cholesky_seq[:, :, N - i - 1], - B.T @ P_seq[:, :, N - i] @ A)
+            K_seq[:, :, N - i - 1] = np.linalg.solve(R_tilde_Cholesky_seq[:, :, N - i - 1].T.conj(), y)
             A_bar_seq[:, :, N - i - 1] = A + B @ K_seq[:, :, N - i - 1]
             P_seq[:, :, N - i - 1] = Q + 1 / self.__lambda * np.eye(n_x) + K_seq[:, :, N - i - 1].T \
                                      @ (R + 1 / self.__lambda * np.eye(n_u)) @ K_seq[:, :, N - i - 1] \
