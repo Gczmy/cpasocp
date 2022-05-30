@@ -37,7 +37,7 @@ class ProximalOfflinePart:
         R_tilde_Cholesky_seq = np.zeros((n_u, n_u, N))  # tensor
         K_seq = np.zeros((n_u, n_x, N))  # tensor
         A_bar_seq = np.zeros((n_x, n_x, N))  # tensor
-        P_0 = P + self.__lambda * np.eye(n_x)
+        P_0 = P + 1 / self.__lambda * np.eye(n_x)
         P_seq[:, :, N] = P_0
 
         for i in range(N):

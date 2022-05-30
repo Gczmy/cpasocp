@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+import scipy as sp
 import cvxpy as cp
 import cpasocp.core.linear_operators as core_lin_op
 import cpasocp.core.proximal_offline_part as core_offline
@@ -13,17 +14,18 @@ class TestOnlinePart(unittest.TestCase):
         super().setUpClass()
 
     def test_online_part(self):
-        tol = 1e-2
+        tol = 1e-10
 
-        prediction_horizon = 60
-        n_x = 20
-        n_u = 10
-        n_c = 15
-        n_f = 15
-        # A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
-        A = np.array(np.random.rand(n_x, n_x))  # n x n matrices
-        # B = np.array([[1, 1], [0.5, 1]])  # n x u matrices
-        B = np.array(np.random.rand(n_x, n_u))  # n x u matrices
+        prediction_horizon = 1
+        proximal_lambda = 0.1
+        n_x = 2
+        n_u = 2
+        n_c = 2
+        n_f = 2
+        A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
+        # A = np.array(np.random.rand(n_x, n_x))  # n x n matrices
+        B = np.array([[1, 1], [0.5, 1]])  # n x u matrices
+        # B = np.array(np.random.rand(n_x, n_u))  # n x u matrices
 
         Q = 10 * np.eye(n_x)  # n x n matrix
         R = np.eye(n_u)  # u x u matrix OR scalar
@@ -33,22 +35,24 @@ class TestOnlinePart(unittest.TestCase):
         Gamma_u = np.ones((n_c, n_u))  # n_c x n_u matrix
         Gamma_N = np.ones((n_f, n_x))  # n_f x n_x matrix
 
-        initial_state = np.array(np.random.rand(n_x))
+        initial_state = np.array([0.2, 0.5])
+        # initial_state = 10 * np.array(np.random.rand(n_x))
         n_z = (prediction_horizon + 1) * A.shape[1] + prediction_horizon * B.shape[1]
         z0 = np.zeros((n_z, 1))
-        for i in range(initial_state.shape[0]):
-            z0[i] = initial_state[i]
+        # z0 = np.array(np.random.rand(n_z, 1))
+        # for i in range(initial_state.shape[0]):
+        #     z0[i] = initial_state[i]
 
         L = core_lin_op.LinearOperator(prediction_horizon, A, B, Gamma_x, Gamma_u, Gamma_N).make_L_op()
         L_adj = core_lin_op.LinearOperator(prediction_horizon, A, B, Gamma_x, Gamma_u, Gamma_N).make_L_adj()
 
         # Choose α1, α2 > 0 such that α1α2∥L∥^2 < 1
-        L_vec = np.random.randn(n_z).reshape((n_z, 1))
-        L_vec = L_vec / np.linalg.norm(L_vec)
-        L_norm = np.linalg.norm(L @ L_vec)
+        eigs = np.real(sp.sparse.linalg.eigs(L_adj @ L, k=n_x, return_eigenvectors=False, which='LR'))
+        L_norm = np.sqrt(max(eigs))
         alpha = 0.99 / L_norm
 
-        P_seq, R_tilde_Cholesky_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(prediction_horizon, alpha, A,
+        P_seq, R_tilde_Cholesky_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(prediction_horizon,
+                                                                                         alpha, A,
                                                                                          B,
                                                                                          Q, R, P).algorithm()
         # solving OCP by cvxpy
@@ -95,23 +99,25 @@ class TestOnlinePart(unittest.TestCase):
             z_cp = np.vstack((z_cp, np.reshape(u_seq.value[:, i], (n_u, 1))))
 
         z_cp = np.vstack((z_cp, np.reshape(x_seq.value[:, N], (n_x, 1))))  # xN
-
-        z_online_part = core_online.proximal_of_h_online_part(prediction_horizon=prediction_horizon,
-                                                              proximal_lambda=1e20,
-                                                              initial_state=initial_state,
-                                                              initial_guess_vector=z0,
-                                                              state_dynamics=A,
-                                                              control_dynamics=B,
-                                                              control_weight=R,
-                                                              P_seq=P_seq,
-                                                              R_tilde_Cholesky_seq=R_tilde_Cholesky_seq,
-                                                              K_seq=K_seq,
-                                                              A_bar_seq=A_bar_seq)
+        z_in = z0
+        for i in range(2000):
+            z_online_part = core_online.proximal_of_h_online_part(prediction_horizon=prediction_horizon,
+                                                                  proximal_lambda=alpha,
+                                                                  initial_state=initial_state,
+                                                                  initial_guess_vector=z_in,
+                                                                  state_dynamics=A,
+                                                                  control_dynamics=B,
+                                                                  control_weight=R,
+                                                                  P_seq=P_seq,
+                                                                  R_tilde_Cholesky_seq=R_tilde_Cholesky_seq,
+                                                                  K_seq=K_seq,
+                                                                  A_bar_seq=A_bar_seq)
+            z_in = z_online_part
         self.assertEqual(len(z_cp), len(z_online_part))
         # for i in range(n_z):
         #     self.assertAlmostEqual(z_cp[i, 0], z_online_part[i, 0], delta=tol)
-        print(z_online_part)
         print(z_cp)
+        print("\n\n\n", z_online_part)
 
 
 if __name__ == '__main__':

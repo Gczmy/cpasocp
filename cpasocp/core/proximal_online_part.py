@@ -42,8 +42,7 @@ def proximal_of_h_online_part(prediction_horizon, proximal_lambda, initial_state
     for t in range(N):
         v = w[(N - t - 1) * (n_x + n_u) + n_x: (N - t) * (n_x + n_u)]
         chi = w[(N - t - 1) * (n_x + n_u): (N - t - 1) * (n_x + n_u) + n_x]
-        y = np.linalg.solve(R_tilde_Cholesky_seq[:, :, N - t - 1], 1 / proximal_lambda * v - B.T
-                                                 @ q_seq[:, :, N - t])
+        y = np.linalg.solve(R_tilde_Cholesky_seq[:, :, N - t - 1], 1 / proximal_lambda * v - B.T @ q_seq[:, :, N - t])
         d_seq[:, :, N - t - 1] = np.linalg.solve(R_tilde_Cholesky_seq[:, :, N - t - 1].T.conj(), y)
         q_seq[:, :, N - t - 1] = K_seq[:, :, N - t - 1].T \
                                  @ ((R + 1 / proximal_lambda * np.eye(n_u)) @ d_seq[:, :, N - t - 1]
@@ -53,6 +52,7 @@ def proximal_of_h_online_part(prediction_horizon, proximal_lambda, initial_state
     x_seq = np.zeros((n_x, 1, N + 1))  # tensor
     u_seq = np.zeros((n_u, 1, N))  # tensor
     x_seq[:, :, N] = np.reshape(x_0, (n_x, 1))
+
     # Construct Proximal of h at w
     prox = np.reshape(x_seq[:, :, N], (n_x, 1))  # x_0
     for t in range(N):

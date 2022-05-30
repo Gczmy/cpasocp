@@ -1,4 +1,5 @@
 import numpy as np
+import scipy as sp
 import cpasocp.core.dynamics as core_dynamics
 import cpasocp.core.costs as core_costs
 import cpasocp.core.constraints as core_constraints
@@ -101,13 +102,12 @@ class CPASOCP:
 
         L = core_lin_op.LinearOperator(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u,
                                        self.__Gamma_N).make_L_op()
-        L_z = L * initial_guess_z
+        L_z = L @ initial_guess_z
         L_adj = core_lin_op.LinearOperator(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x,
                                            self.__Gamma_u, self.__Gamma_N).make_L_adj()
         # Choose α1, α2 > 0 such that α1α2∥L∥^2 < 1
-        L_vec = np.random.randn(n_z).reshape((n_z, 1))
-        L_vec = L_vec / np.linalg.norm(L_vec)
-        L_norm = np.linalg.norm(L @ L_vec)
+        eigs = np.real(sp.sparse.linalg.eigs(L_adj @ L, k=n_z-2, return_eigenvectors=False))
+        L_norm = np.sqrt(max(eigs))
         alpha = 0.99 / L_norm
 
         P_seq, R_tilde_Cholesky_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(

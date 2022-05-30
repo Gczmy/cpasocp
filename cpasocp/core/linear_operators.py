@@ -73,7 +73,7 @@ class LinearOperator:
                 L_adj_i_u = np.reshape(Gamma_u.T @ v[i * n_c: (i + 1) * n_c], (n_u, 1))
                 L_adj = np.vstack((L_adj, L_adj_i_x, L_adj_i_u))
 
-            L_adj_N = np.reshape(Gamma_N.T @ v[N * n_c: (N + 1) * n_c], (n_x, 1))
+            L_adj_N = np.reshape(Gamma_N.T @ v[N * n_c: (N + 1) * n_f], (n_x, 1))
             L_adj = np.vstack((L_adj, L_adj_N))
             return L_adj
 
