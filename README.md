@@ -5,6 +5,6 @@ Chambolle-Pock Algorithm Solving Optimal Control Problems
 - [ ] Tests
     - [x] Test for sets
     - [x] Test for LinearOperators
-    - [ ] Test for offline part
-    - [ ] Test for online part
+    - [x] Test for offline part
+    - [x] Test for online part
     - [ ] Test for results

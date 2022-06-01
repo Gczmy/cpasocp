@@ -34,7 +34,7 @@ def proj_to_c(vector, prediction_horizon, stage_state, terminal_state, stage_set
 
 def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_adj,
                                      prediction_horizon, initial_state, state_dynamics, control_dynamics,
-                                     control_weight, P_seq, R_tilde_Cholesky_seq, K_seq, A_bar_seq, stage_state,
+                                     control_weight, P_seq, R_tilde_seq, K_seq, A_bar_seq, stage_state,
                                      terminal_state, stage_sets, terminal_set):
     """
     :param epsilon: scalar (epsilon) of Chambolle-Pock algorithm
@@ -94,7 +94,7 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
                                                        control_dynamics=B,
                                                        control_weight=R,
                                                        P_seq=P_seq,
-                                                       R_tilde_Cholesky_seq=R_tilde_Cholesky_seq,
+                                                       R_tilde_seq=R_tilde_seq,
                                                        K_seq=K_seq,
                                                        A_bar_seq=A_bar_seq)
         eta_half_next = eta_prev + alpha * L @ (2 * z_next - z_prev)

@@ -1,8 +1,9 @@
 import numpy as np
+import scipy as sp
 
 
 def proximal_of_h_online_part(prediction_horizon, proximal_lambda, initial_state, initial_guess_vector, state_dynamics,
-                              control_dynamics, control_weight, P_seq, R_tilde_Cholesky_seq, K_seq,
+                              control_dynamics, control_weight, P_seq, R_tilde_seq, K_seq,
                               A_bar_seq):
     """
     :param prediction_horizon: prediction horizon (N) of dynamic system
@@ -13,8 +14,7 @@ def proximal_of_h_online_part(prediction_horizon, proximal_lambda, initial_state
     :param control_dynamics: matrix (B), describing control dynamics
     :param control_weight: scalar or matrix (R), input cost matrix or scalar
     :param P_seq: tensor, matrix sequence of (P) from proximal of h offline part
-    :param R_tilde_Cholesky_seq: tensor, matrix sequence of the Cholesky decomposition of (R_tilde) from proximal of h
-    offline part
+    :param R_tilde_seq: tensor, matrix sequence of (R_tilde) from proximal of h offline part
     :param K_seq: tensor, matrix sequence of (K) from proximal of h offline part
     :param A_bar_seq: tensor, matrix sequence of (A_bar) from proximal of h offline part
     """
@@ -42,11 +42,13 @@ def proximal_of_h_online_part(prediction_horizon, proximal_lambda, initial_state
     for t in range(N):
         v = w[(N - t - 1) * (n_x + n_u) + n_x: (N - t) * (n_x + n_u)]
         chi = w[(N - t - 1) * (n_x + n_u): (N - t - 1) * (n_x + n_u) + n_x]
-        y = np.linalg.solve(R_tilde_Cholesky_seq[:, :, N - t - 1], 1 / proximal_lambda * v - B.T @ q_seq[:, :, N - t])
-        d_seq[:, :, N - t - 1] = np.linalg.solve(R_tilde_Cholesky_seq[:, :, N - t - 1].T.conj(), y)
+        # v = w[t * (n_x + n_u) + n_x: (t + 1) * (n_x + n_u)]
+        # chi = w[t * (n_x + n_u): t * (n_x + n_u) + n_x]
+        c, low = sp.linalg.cho_factor(R_tilde_seq[:, :, N - t - 1])
+        d_seq[:, :, N - t - 1] = sp.linalg.cho_solve((c, low), 1 / proximal_lambda * v - B.T @ q_seq[:, :, N - t])
         q_seq[:, :, N - t - 1] = K_seq[:, :, N - t - 1].T \
                                  @ ((R + 1 / proximal_lambda * np.eye(n_u)) @ d_seq[:, :, N - t - 1]
-                                    - 1 / proximal_lambda * v) + 1 / proximal_lambda * chi \
+                                    - 1 / proximal_lambda * v) - 1 / proximal_lambda * chi \
                                  + A_bar_seq[:, :, N - t - 1].T @ (P_seq[:, :, N - t] @ B @ d_seq[:, :, N - t - 1]
                                                                    + q_seq[:, :, N - t])
     x_seq = np.zeros((n_x, 1, N + 1))  # tensor

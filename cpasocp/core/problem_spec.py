@@ -110,7 +110,7 @@ class CPASOCP:
         L_norm = np.sqrt(max(eigs))
         alpha = 0.99 / L_norm
 
-        P_seq, R_tilde_Cholesky_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
+        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon,
             alpha, self.__A, self.__B,
             self.__Q, self.__R,
@@ -125,7 +125,7 @@ class CPASOCP:
             self.__A, self.__B,
             self.__R,
             P_seq,
-            R_tilde_Cholesky_seq,
+            R_tilde_seq,
             K_seq,
             A_bar_seq,
             self.__Gamma_x,
