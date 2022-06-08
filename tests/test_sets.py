@@ -90,15 +90,18 @@ class TestSets(unittest.TestCase):
             samples[3][i] = np.random.randint(-1, 1, TestSets.__set_dimension)  # ball samples
 
         # test cartesian
-        self.assertEqual(set_type, test_sets.py)
+        self.assertEqual(set_type, type(cartesian).__name__)
         self.assertEqual(sets_type, cartesian.types)
         projection = cartesian.project([vector[0], vector[1], vector[2], vector[3]])
+
         for i in range(num_cones):
             for j in range(TestSets.__num_samples):
                 self.assertTrue(np.inner((vector[i].reshape((TestSets.__set_dimension,))
-                                          - projection[i].reshape((TestSets.__set_dimension,))),
+                                          - projection[i*vector[i].shape[0]: (i+1)*vector[i].shape[0]].
+                                          reshape((TestSets.__set_dimension,))),
                                          (samples[i][j].reshape((TestSets.__set_dimension,))
-                                          - projection[i].reshape((TestSets.__set_dimension,)))) <= 0)
+                                          - projection[i*vector[i].shape[0]: (i+1)*vector[i].shape[0]].
+                                          reshape((TestSets.__set_dimension,)))) <= 0)
 
 
 if __name__ == '__main__':

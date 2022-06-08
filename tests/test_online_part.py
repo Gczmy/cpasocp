@@ -1,8 +1,6 @@
 import unittest
 import numpy as np
-import scipy as sp
 import cvxpy as cp
-import cpasocp.core.linear_operators as core_lin_op
 import cpasocp.core.proximal_offline_part as core_offline
 import cpasocp.core.proximal_online_part as core_online
 
@@ -18,22 +16,18 @@ class TestOnlinePart(unittest.TestCase):
 
         prediction_horizon = 20
         proximal_lambda = 0.1
-        n_x = 2
-        n_u = 2
+        n_x = 10
+        n_u = 5
 
-        # A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
         A = np.array(np.random.rand(n_x, n_x))  # n x n matrices
-        # B = np.array([[1, 1], [0.5, 1]])  # n x u matrices
         B = np.array(np.random.rand(n_x, n_u))  # n x u matrices
 
         Q = 10 * np.eye(n_x)  # n x n matrix
         R = np.eye(n_u)  # u x u matrix OR scalar
         P = 5 * np.eye(n_x)  # n x n matrix
 
-        # initial_state = np.array([0.2, 0.5])
         initial_state = 10 * np.array(np.random.rand(n_x))
         n_z = (prediction_horizon + 1) * A.shape[1] + prediction_horizon * B.shape[1]
-        # z0 = np.zeros((n_z, 1))
         z0 = np.array(np.random.rand(n_z, 1))
 
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(prediction_horizon,
@@ -80,6 +74,8 @@ class TestOnlinePart(unittest.TestCase):
             z_cp = np.vstack((z_cp, np.reshape(u_seq.value[:, i], (n_u, 1))))
 
         z_cp = np.vstack((z_cp, np.reshape(x_seq.value[:, N], (n_x, 1))))  # xN
+
+        # solving OCP by proximal
         for i in range(2000):
             z_online_part = core_online.proximal_of_h_online_part(prediction_horizon=prediction_horizon,
                                                                   proximal_lambda=proximal_lambda,
@@ -93,10 +89,7 @@ class TestOnlinePart(unittest.TestCase):
                                                                   K_seq=K_seq,
                                                                   A_bar_seq=A_bar_seq)
         error = np.linalg.norm(z_cp - z_online_part, np.inf)
-        # self.assertAlmostEqual(error, 0, delta=tol)
-        print(error)
-        print(z_cp)
-        print(z_online_part)
+        self.assertAlmostEqual(error, 0, delta=tol)
 
 
 if __name__ == '__main__':

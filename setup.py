@@ -6,13 +6,13 @@ import os
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-NAME = 'cpasocp'
+NAME = 'raocp'
 
 # Import version from file
 version_file = open(os.path.join(here, 'VERSION'))
 VERSION = version_file.read().strip()
 
-DESCRIPTION = 'Chambolle-Pock Algorithm Solving Optimal Control Problems'
+DESCRIPTION = 'Solver for multistage risk-averse optimal control problems'
 
 
 # Import the README and use it as the long-description.
@@ -42,6 +42,6 @@ setup(name=NAME,
       ],
       keywords=['wind'],
       url=(
-          'https://github.com/Gczmy/cpasocp_toolbox'
+          'https://github.com/smokinmirror/rampc-toolbox'
       ),
       zip_safe=False)

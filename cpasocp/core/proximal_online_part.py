@@ -42,8 +42,6 @@ def proximal_of_h_online_part(prediction_horizon, proximal_lambda, initial_state
     for t in range(N):
         v = w[(N - t - 1) * (n_x + n_u) + n_x: (N - t) * (n_x + n_u)]
         chi = w[(N - t - 1) * (n_x + n_u): (N - t - 1) * (n_x + n_u) + n_x]
-        # v = w[t * (n_x + n_u) + n_x: (t + 1) * (n_x + n_u)]
-        # chi = w[t * (n_x + n_u): t * (n_x + n_u) + n_x]
         c, low = sp.linalg.cho_factor(R_tilde_seq[:, :, N - t - 1])
         d_seq[:, :, N - t - 1] = sp.linalg.cho_solve((c, low), 1 / proximal_lambda * v - B.T @ q_seq[:, :, N - t])
         q_seq[:, :, N - t - 1] = K_seq[:, :, N - t - 1].T \
