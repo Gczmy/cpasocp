@@ -35,6 +35,7 @@ class CPASOCP:
         self.__residuals_cache = None
         self.__z = None
         self.__eta = None
+        self.__alpha = None
 
     # GETTERS
     @property
@@ -56,6 +57,10 @@ class CPASOCP:
     @property
     def get_eta_value(self):
         return self.__eta
+
+    @property
+    def get_alpha(self):
+        return self.__alpha
 
     @property
     def get_residuals_cache(self):
@@ -85,14 +90,45 @@ class CPASOCP:
 
     # Constraints ------------------------------------------------------------------------------------------------------
 
-    def with_constraints(self, stage_state, stage_control, terminal_state, stage_sets, terminal_set):
-        self.__Gamma_x = stage_state
-        self.__Gamma_u = stage_control
-        self.__Gamma_N = terminal_state
+    def with_constraints(self, constraints_type, stage_sets, terminal_set):
+        n_x = self.__A.shape[1]
+        n_u = self.__B.shape[1]
+
         self.__C_t = stage_sets
         self.__C_N = terminal_set
-        self.__constraints = core_constraints.Constraints(stage_state, stage_control, terminal_state, stage_sets,
-                                                          terminal_set)
+
+        # generate Gamma matrix depends on constraints type
+        if constraints_type == 'No constraints' or constraints_type == 'Real':
+            if type(stage_sets).__name__ == 'Cartesian':
+                pass
+            elif type(stage_sets).__name__ == 'Real':
+                pass
+            else:
+                raise ValueError("stage sets are not Real!")
+            if type(terminal_set).__name__ == 'Real':
+                pass
+            else:
+                raise ValueError("terminal set is not Real!")
+            self.__Gamma_x = np.vstack((np.eye(n_x), np.zeros((n_u, n_x))))
+            self.__Gamma_u = np.vstack((np.zeros((n_x, n_u)), np.eye(n_u)))
+            self.__Gamma_N = np.eye(n_x)
+        elif constraints_type == 'Rectangle':
+            if type(stage_sets).__name__ == 'Cartesian':
+                pass
+            elif type(stage_sets).__name__ == 'Rectangle':
+                pass
+            else:
+                raise ValueError("stage sets are not Rectangle!")
+            if type(terminal_set).__name__ == 'Rectangle':
+                pass
+            else:
+                raise ValueError("terminal set is not Rectangle!")
+            self.__Gamma_x = np.vstack((np.eye(n_x), np.zeros((n_u, n_x))))
+            self.__Gamma_u = np.vstack((np.zeros((n_x, n_u)), np.eye(n_u)))
+            self.__Gamma_N = np.eye(n_x)
+        else:
+            raise ValueError("Constraints type is not support!")
+        self.__constraints = core_constraints.Constraints(constraints_type, stage_sets, terminal_set)
         return self
 
     # Chambolle-Pock algorithm for Optimal Control Problems -----------------------------------------------------------
@@ -108,18 +144,18 @@ class CPASOCP:
         # Choose α1, α2 > 0 such that α1α2∥L∥^2 < 1
         eigs = np.real(sp.sparse.linalg.eigs(L_adj @ L, k=n_z-2, return_eigenvectors=False))
         L_norm = np.sqrt(max(eigs))
-        alpha = 0.99 / L_norm
+        self.__alpha = 0.99 / L_norm
 
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon,
-            alpha, self.__A, self.__B,
+            self.__alpha, self.__A, self.__B,
             self.__Q, self.__R,
             self.__P).algorithm()
         self.__residuals_cache, self.__z, self.__eta = core_cpa.chambolle_pock_algorithm_for_ocp(
             epsilon,
             initial_guess_z,
             initial_guess_eta,
-            alpha, L, L_z, L_adj,
+            self.__alpha, L, L_z, L_adj,
             self.__prediction_horizon,
             initial_state,
             self.__A, self.__B,

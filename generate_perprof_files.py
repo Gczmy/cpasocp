@@ -2,9 +2,7 @@ import time
 import cpasocp as cpa
 import numpy as np
 import cvxpy as cp
-import scipy as sp
 import cpasocp.core.sets as core_sets
-import cpasocp.core.linear_operators as core_lin_op
 
 f = open("Chambolle-Pock.txt", "w")
 print("---\nalgname: Chambolle-Pock\nsuccess: converged\nfree_format: True\n---", file=f)
@@ -35,10 +33,7 @@ for problem_loop in range(100):
     P = 5 * np.eye(n_x)  # n x n matrix
 
     # constraints
-    Gamma_x = np.ones((n_c, n_x))  # n_c x n_x matrix
-    Gamma_u = np.ones((n_c, n_u))  # n_c x n_u matrix
-    Gamma_N = np.ones((n_f, n_x))  # n_f x n_x matrix
-
+    constraints_type = 'Rectangle'
     rectangle = core_sets.Rectangle(rect_min=-2, rect_max=2)
     stage_sets_list = [rectangle] * prediction_horizon
     stage_sets = core_sets.Cartesian(stage_sets_list)
@@ -51,8 +46,7 @@ for problem_loop in range(100):
 
     n_z = (prediction_horizon + 1) * A.shape[1] + prediction_horizon * B.shape[1]
     z0 = np.zeros((n_z, 1))
-    n_L = prediction_horizon * Gamma_x.shape[0] + Gamma_N.shape[0]
-    eta0 = np.zeros((n_L, 1))
+    eta0 = np.zeros((n_z, 1))
 
     # start time for chambolle-pock method
     start = time.time()
@@ -60,7 +54,7 @@ for problem_loop in range(100):
     solution = cpa.core.CPASOCP(prediction_horizon) \
         .with_dynamics(A, B) \
         .with_cost(cost_type, Q, R, P) \
-        .with_constraints(Gamma_x, Gamma_u, Gamma_N, stage_sets, terminal_set) \
+        .with_constraints(constraints_type, stage_sets, terminal_set) \
         .chambolle_pock_algorithm(epsilon, x0, z0, eta0)
     cp_time = time.time() - start
     f = open("Chambolle-Pock.txt", "a")
@@ -73,14 +67,7 @@ for problem_loop in range(100):
     n_x = A.shape[1]
     n_u = B.shape[1]
 
-    L = core_lin_op.LinearOperator(prediction_horizon, A, B, Gamma_x, Gamma_u, Gamma_N).make_L_op()
-    L_z = L @ z0
-    L_adj = core_lin_op.LinearOperator(prediction_horizon, A, B, Gamma_x, Gamma_u, Gamma_N).make_L_adj()
-    # Choose α1, α2 > 0 such that α1α2∥L∥^2 < 1
-    eigs = np.real(sp.sparse.linalg.eigs(L_adj @ L, k=n_z-2, return_eigenvectors=False))
-    L_norm = np.sqrt(max(eigs))
-    alpha = 0.99 / L_norm
-
+    alpha = solution.get_alpha
     # start time for cvxpy
     start = time.time()
 
