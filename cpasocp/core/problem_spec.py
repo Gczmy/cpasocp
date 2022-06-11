@@ -36,6 +36,7 @@ class CPASOCP:
         self.__z = None
         self.__eta = None
         self.__alpha = None
+        self.__status = None
 
     # GETTERS
     @property
@@ -61,6 +62,10 @@ class CPASOCP:
     @property
     def get_alpha(self):
         return self.__alpha
+
+    @property
+    def get_status(self):
+        return self.__status
 
     @property
     def get_residuals_cache(self):
@@ -151,7 +156,7 @@ class CPASOCP:
             self.__alpha, self.__A, self.__B,
             self.__Q, self.__R,
             self.__P).algorithm()
-        self.__residuals_cache, self.__z, self.__eta = core_cpa.chambolle_pock_algorithm_for_ocp(
+        self.__residuals_cache, self.__z, self.__eta, self.__status = core_cpa.chambolle_pock_algorithm_for_ocp(
             epsilon,
             initial_guess_z,
             initial_guess_eta,

@@ -101,7 +101,7 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
         eta_next = eta_half_next - alpha * proj_to_c(eta_half_next / alpha, N, Gamma_x, Gamma_N, C_t, C_N)
 
         # Termination criteria
-        xi_1 = (z_next - z_prev) / alpha - L_adj @ (eta_prev - eta_next)
+        xi_1 = (z_prev - z_next) / alpha - L_adj @ (eta_prev - eta_next)
         xi_2 = (eta_prev - eta_next) / alpha + L @ (z_next - z_prev)
         xi_gap = xi_1 + L_adj @ xi_2
         t_1 = np.linalg.norm(xi_1, np.inf)
@@ -110,9 +110,11 @@ def chambolle_pock_algorithm_for_ocp(epsilon, initial_guess_z, initial_guess_eta
         residuals_cache[i, 0] = t_1
         residuals_cache[i, 1] = t_2
         residuals_cache[i, 2] = t_3
-
         if t_1 <= epsilon and t_2 <= epsilon and t_3 <= epsilon:
             break
+        status = 0  # converge success
+        if i >= 9000:
+            status = 1  # converge failed
     residuals_cache = residuals_cache[0:i, :]
 
-    return residuals_cache, z_next, eta_next
+    return residuals_cache, z_next, eta_next, status
