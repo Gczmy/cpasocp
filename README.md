@@ -2,9 +2,15 @@
 Chambolle-Pock Algorithm Solving Optimal Control Problems
 
 ## list of issues
-- [ ] Tests
+- [x] Tests
     - [x] Test for sets
     - [x] Test for LinearOperators
     - [x] Test for offline part
     - [x] Test for online part
-    - [ ] Test for results
+    - [x] Test for results
+- [ ] Extensions
+    - [x] Comparison with ADMM and cvxpy
+    - [x] Dolan-More profile diagram by perprof-py
+    - [ ] Preconditioning
+    - [ ] Scaling
+    - [ ] Termination criteria

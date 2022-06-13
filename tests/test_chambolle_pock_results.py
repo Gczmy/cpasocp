@@ -1,7 +1,6 @@
 import unittest
 import numpy as np
 import cvxpy as cp
-import matplotlib.pyplot as plt
 import cpasocp as cpa
 import cpasocp.core.sets as core_sets
 
@@ -13,7 +12,7 @@ class TestChambollePockResults(unittest.TestCase):
         super().setUpClass()
 
     def test_chambolle_pock_results(self):
-        tol = 1e-5
+        tol = 1e-4
 
         prediction_horizon = 10
         n_x = 2
@@ -78,8 +77,10 @@ class TestChambollePockResults(unittest.TestCase):
             ut_var = u_seq[:, t]  # u_t
             chi_t = np.reshape(z0[t * (n_x + n_u): t * (n_x + n_u) + n_x], n_x)
             v_t = np.reshape(z0[t * (n_x + n_u) + n_x: (t + 1) * (n_x + n_u)], n_u)
-            cost += 0.5 * (cp.quad_form(xt_var, Q) + cp.quad_form(ut_var, R) + 1 / alpha
-                           * (cp.sum_squares(xt_var - chi_t) + cp.sum_squares(ut_var - v_t)))  # Stage cost
+            cost += 0.5 * (cp.quad_form(xt_var, Q) + cp.quad_form(ut_var, R)
+                           # + 1 / alpha
+                           # * (cp.sum_squares(xt_var - chi_t) + cp.sum_squares(ut_var - v_t))
+                           )  # Stage cost
             constraints += [x_seq[:, t + 1] == A @ xt_var + B @ ut_var,  # Dynamics
                             c_t_x_min <= xt_var,
                             xt_var <= c_t_x_max,
@@ -88,14 +89,15 @@ class TestChambollePockResults(unittest.TestCase):
 
         xN = x_seq[:, N]
         chi_N = np.reshape(z0[N * (n_x + n_u): N * (n_x + n_u) + n_x], n_x)
-        cost += 0.5 * (cp.quad_form(xN, P) + 1 / alpha * cp.sum_squares(xN - chi_N))  # Terminal cost
+        cost += 0.5 * (cp.quad_form(xN, P)
+                       # + 1 / alpha * cp.sum_squares(xN - chi_N)
+                       )  # Terminal cost
         constraints += [c_N_min <= xN, xN <= c_N_max]
 
         # Solution
         x0_cp.value = initial_state
         problem = cp.Problem(cp.Minimize(cost), constraints)
         problem.solve()
-        print(problem.status)
 
         # Construct z, z are all the states and inputs in a big vector
         z_cvxpy = np.reshape(x_seq.value[:, 0], (n_x, 1))  # x_0
@@ -107,32 +109,10 @@ class TestChambollePockResults(unittest.TestCase):
 
         z_cvxpy = np.vstack((z_cvxpy, np.reshape(x_seq.value[:, N], (n_x, 1))))  # xN
 
-
         z_chambolle_pock = solution.get_z_value
 
-        # for i in range(n_z):
-        #     self.assertAlmostEqual(z_cvxpy[i, 0], z_chambolle_pock[i, 0], delta=tol)
-        error = np.linalg.norm(z_cvxpy - z_chambolle_pock, np.inf)
-        # print(error)
-        # print(z_cvxpy - z_chambolle_pock)
-        # print(z_cvxpy)
-        wwwww = np.hstack((z_chambolle_pock, z_cvxpy))
-        print(np.hstack((z_chambolle_pock, z_cvxpy)))
-
-        # plt.figure(1)
-        # plt.title('plot')
-        # plt.xlabel('Iterations')
-        # plt.ylabel('Residuals')
-        # plt.plot(solution.get_residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
-        # plt.legend()
-        #
-        # plt.figure(2)
-        # plt.title('semilogy')
-        # plt.xlabel('Iterations')
-        # plt.ylabel('Residuals')
-        # plt.semilogy(solution.get_residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
-        # plt.legend()
-        # plt.show()
+        error = np.linalg.norm(z_chambolle_pock - z_cvxpy, np.inf)
+        self.assertAlmostEqual(error, 0, delta=tol)
 
 
 if __name__ == '__main__':

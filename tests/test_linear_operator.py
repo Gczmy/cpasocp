@@ -11,24 +11,25 @@ class TestLinearOperators(unittest.TestCase):
 
     def test_linearoperators(self):
         tol = 1e-10
+
         # define dynamic system parameters
         prediction_horizon = 10
 
         A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
         B = np.array([[1, 1], [0.5, 1]])  # n x u matrices
 
-        Gamma_x = np.eye(2)  # n_c x n_x matrix
-        Gamma_u = np.eye(2)  # n_c x n_u matrix
-        Gamma_N = np.eye(2)  # n_f x n_x matrix
-
         N = prediction_horizon
         n_x = A.shape[1]
         n_u = B.shape[1]
+
+        Gamma_x = np.vstack((np.eye(n_x), np.zeros((n_u, n_x))))
+        Gamma_u = np.vstack((np.zeros((n_x, n_u)), np.eye(n_u)))
+        Gamma_N = np.eye(n_x)
+
         n_c = Gamma_x.shape[0]
         n_f = Gamma_N.shape[0]
         n_z = (N + 1) * n_x + N * n_u
         n_y = N * n_c + n_f
-
         # create random samples
         num_samples = 100
         multiplier = 10
@@ -44,3 +45,7 @@ class TestLinearOperators(unittest.TestCase):
             inner_1 = np.inner(y.T, (L @ z).T)[0, 0]
             inner_2 = np.inner((L_adj @ y).T, z.T)[0, 0]
             self.assertAlmostEqual(inner_1, inner_2, delta=tol)
+
+
+if __name__ == '__main__':
+    unittest.main()

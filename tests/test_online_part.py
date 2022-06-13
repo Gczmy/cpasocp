@@ -76,18 +76,17 @@ class TestOnlinePart(unittest.TestCase):
         z_cp = np.vstack((z_cp, np.reshape(x_seq.value[:, N], (n_x, 1))))  # xN
 
         # solving OCP by proximal
-        for i in range(2000):
-            z_online_part = core_online.proximal_of_h_online_part(prediction_horizon=prediction_horizon,
-                                                                  proximal_lambda=proximal_lambda,
-                                                                  initial_state=initial_state,
-                                                                  initial_guess_vector=z0,
-                                                                  state_dynamics=A,
-                                                                  control_dynamics=B,
-                                                                  control_weight=R,
-                                                                  P_seq=P_seq,
-                                                                  R_tilde_seq=R_tilde_seq,
-                                                                  K_seq=K_seq,
-                                                                  A_bar_seq=A_bar_seq)
+        z_online_part = core_online.proximal_of_h_online_part(prediction_horizon=prediction_horizon,
+                                                              proximal_lambda=proximal_lambda,
+                                                              initial_state=initial_state,
+                                                              initial_guess_vector=z0,
+                                                              state_dynamics=A,
+                                                              control_dynamics=B,
+                                                              control_weight=R,
+                                                              P_seq=P_seq,
+                                                              R_tilde_seq=R_tilde_seq,
+                                                              K_seq=K_seq,
+                                                              A_bar_seq=A_bar_seq)
         error = np.linalg.norm(z_cp - z_online_part, np.inf)
         self.assertAlmostEqual(error, 0, delta=tol)
 
