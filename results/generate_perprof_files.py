@@ -94,13 +94,17 @@ for problem_loop in range(200):
         ut_var = u_seq[:, t]  # u_t
         chi_t = np.reshape(z0[t * (n_x + n_u): t * (n_x + n_u) + n_x], n_x)
         v_t = np.reshape(z0[t * (n_x + n_u) + n_x: (t + 1) * (n_x + n_u)], n_u)
-        cost += 0.5 * (cp.quad_form(xt_var, Q) + cp.quad_form(ut_var, R) + 1 / alpha
-                       * (cp.sum_squares(xt_var - chi_t) + cp.sum_squares(ut_var - v_t)))  # Stage cost
+        cost += 0.5 * (cp.quad_form(xt_var, Q) + cp.quad_form(ut_var, R)
+                       # + 1 / alpha
+                       # * (cp.sum_squares(xt_var - chi_t) + cp.sum_squares(ut_var - v_t))
+                       )  # Stage cost
         constraints += [x_seq[:, t + 1] == A @ xt_var + B @ ut_var]  # Input Constraints
 
     xN = x_seq[:, N]
     chi_N = np.reshape(z0[N * (n_x + n_u): N * (n_x + n_u) + n_x], n_x)
-    cost += 0.5 * (cp.quad_form(xN, P) + 1 / alpha * cp.sum_squares(xN - chi_N))  # Terminal cost
+    cost += 0.5 * (cp.quad_form(xN, P)
+                   # + 1 / alpha * cp.sum_squares(xN - chi_N)
+                   )  # Terminal cost
 
     # Solution
     x0_cp.value = x0
@@ -138,7 +142,7 @@ for problem_loop in range(200):
     P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(prediction_horizon, alpha, A, B, Q, R,
                                                                             P).algorithm()
 
-    rho = 1.6
+    rho = 1.1
     proximal_lambda = 1 / rho
     z_next = z0
     eta_next = eta0
