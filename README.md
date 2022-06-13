@@ -7,7 +7,9 @@ Chambolle-Pock Algorithm Solving Optimal Control Problems
     - [x] Test for LinearOperators
     - [x] Test for offline part
     - [x] Test for online part
-    - [x] Test for results
+    - [x] Test for CP results
+    - [x] Test for ADMM results
+    
 - [ ] Extensions
     - [x] Comparison with ADMM and cvxpy
     - [x] Dolan-More profile diagram by perprof-py

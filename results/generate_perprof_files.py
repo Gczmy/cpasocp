@@ -2,10 +2,6 @@ import time
 import cpasocp as cpa
 import numpy as np
 import cvxpy as cp
-import cpasocp.core.proximal_offline_part as core_offline
-import cpasocp.core.proximal_online_part as core_online
-import cpasocp.core.chambolle_pock_algorithm as core_cpa
-import cpasocp.core.linear_operators as core_lin_op
 import cpasocp.core.sets as core_sets
 
 f = open("Chambolle-Pock.txt", "w")
@@ -18,8 +14,8 @@ f = open("ADMM.txt", "w")
 print("---\nalgname: ADMM\nsuccess: converged\nfree_format: True\n---", file=f)
 f.close()
 for problem_loop in range(200):
-    # CPASOCP generation
-    # -----------------------------------------------------------------------------------------------------
+    # Chambolle-Pock method
+    # ------------------------------------------------------------------------------------------------------------------
     # dynamics
     prediction_horizon = np.random.randint(10, 20)
 
@@ -27,9 +23,9 @@ for problem_loop in range(200):
     n_u = np.random.randint(9, n_x)  # input dimension
 
     # A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
-    A = np.array(np.random.rand(n_x, n_x))  # n x n matrices
+    A = np.random.rand(n_x, n_x)  # n x n matrices
     # B = np.array([[1, 1], [0.5, 1]])  # n x u matrices
-    B = np.array(np.random.rand(n_x, n_u))  # n x u matrices
+    B = np.random.rand(n_x, n_u)  # n x u matrices
 
     # costs
     cost_type = "Quadratic"
@@ -44,35 +40,39 @@ for problem_loop in range(200):
     stage_sets = core_sets.Cartesian(stage_sets_list)
     terminal_set = core_sets.Rectangle(rect_min=-2, rect_max=2)
     # x0 = np.array([0.2, 0.5])
-    x0 = 0.2 * np.array(np.random.rand(n_x))
+    x0 = 0.5 * np.random.rand(n_x)
 
     # algorithm parameters
-    epsilon = 1e-3
+    epsilon_CP = 1e-4
 
     n_z = (prediction_horizon + 1) * A.shape[1] + prediction_horizon * B.shape[1]
-    z0 = np.zeros((n_z, 1))
-    eta0 = np.zeros((n_z, 1))
+    z0 = 0.5 * np.random.rand(n_z, 1)
+    eta0 = 0.5 * np.random.rand(n_z, 1)
 
     # start time for chambolle-pock method
-    start_cp = time.time()
+    start_CP = time.time()
 
     solution = cpa.core.CPASOCP(prediction_horizon) \
         .with_dynamics(A, B) \
         .with_cost(cost_type, Q, R, P) \
         .with_constraints(constraints_type, stage_sets, terminal_set) \
-        .chambolle_pock_algorithm(epsilon, x0, z0, eta0)
-    cp_time = time.time() - start_cp
+        .chambolle_pock_algorithm(epsilon_CP, x0, z0, eta0)
+
+    CP_time = time.time() - start_CP
+
+    z_CP = solution.get_z_value
+
     if solution.get_status == 0:
         f = open("Chambolle-Pock.txt", "a")
-        print(f"problem{problem_loop} converged {cp_time}", file=f)
+        print(f"problem{problem_loop} converged {CP_time}", file=f)
         f.close()
     else:
         f = open("Chambolle-Pock.txt", "a")
-        print(f"problem{problem_loop} failed {cp_time}", file=f)
+        print(f"problem{problem_loop} failed {CP_time}", file=f)
         f.close()
 
     # solving OCP by cvxpy
-    # -----------------------------
+    # ------------------------------------------------------------------------------------------------------------------
     N = prediction_horizon
     n_x = A.shape[1]
     n_u = B.shape[1]
@@ -119,72 +119,31 @@ for problem_loop in range(200):
         z_cp = np.vstack((z_cp, np.reshape(x_seq.value[:, i], (n_x, 1))))
         z_cp = np.vstack((z_cp, np.reshape(u_seq.value[:, i], (n_u, 1))))
 
-    z_cp = np.vstack((z_cp, np.reshape(x_seq.value[:, N], (n_x, 1))))  # xN
+    z_cvxpy = np.vstack((z_cp, np.reshape(x_seq.value[:, N], (n_x, 1))))  # xN
     cvxpy_time = time.time() - start_cvxpy
     f = open("cvxpy.txt", "a")
     print(f"problem{problem_loop} converged {cvxpy_time}", file=f)
     f.close()
 
-    # # ADMM method
-    Gamma_x = np.vstack((np.eye(n_x), np.zeros((n_u, n_x))))
-    Gamma_u = np.vstack((np.zeros((n_x, n_u)), np.eye(n_u)))
-    Gamma_N = np.eye(n_x)
-
-    rectangle = core_sets.Rectangle(rect_min=-2, rect_max=2)
-    stage_sets_list = [rectangle] * prediction_horizon
-    C_t = core_sets.Cartesian(stage_sets_list)
-    C_N = core_sets.Rectangle(rect_min=-2, rect_max=2)
-
-    L = core_lin_op.LinearOperator(prediction_horizon, A, B, Gamma_x, Gamma_u, Gamma_N).make_L_op()
-    L_z = L @ z0
-    L_adj = core_lin_op.LinearOperator(prediction_horizon, A, B, Gamma_x, Gamma_u, Gamma_N).make_L_adj()
-
-    P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(prediction_horizon, alpha, A, B, Q, R,
-                                                                            P).algorithm()
-
-    rho = 1.1
-    proximal_lambda = 1 / rho
-    z_next = z0
-    eta_next = eta0
-    u0 = 1 / rho * L_adj @ eta0
-    u_next = u0
-    n_max = 10000
-
+    # ADMM method
+    # ------------------------------------------------------------------------------------------------------------------
     start_ADMM = time.time()
 
-    for i in range(n_max):
-        z_prev = z_next
-        eta_prev = eta_next
-        u_prev = u_next
-        z_next = core_online.proximal_of_h_online_part(prediction_horizon=prediction_horizon,
-                                                       proximal_lambda=proximal_lambda,
-                                                       initial_state=x0,
-                                                       initial_guess_vector=-L_adj @ eta_prev - u_prev,
-                                                       state_dynamics=A,
-                                                       control_dynamics=B,
-                                                       control_weight=R,
-                                                       P_seq=P_seq,
-                                                       R_tilde_seq=R_tilde_seq,
-                                                       K_seq=K_seq,
-                                                       A_bar_seq=A_bar_seq)
-        eta_next = - z_next - u_prev - proximal_lambda * core_cpa.proj_to_c((-z_next - u_prev) / proximal_lambda,
-                                                                            prediction_horizon, Gamma_x, Gamma_N,
-                                                                            C_t, C_N)
-        u_next = u_prev + z_next + L_adj @ eta_next
-        s = rho * L_adj @ (eta_next - eta_prev)
-        r = z_next + L_adj @ eta_next
-        t_1 = np.linalg.norm(s)
-        t_2 = np.linalg.norm(r)
-        epsilon_pri = np.sqrt(n_z) * epsilon + epsilon * max(np.linalg.norm(z_prev),
-                                                             np.linalg.norm(L_adj @ eta_prev))
-        epsilon_dual = np.sqrt(n_z) * epsilon + epsilon * np.linalg.norm(L_adj @ eta_prev)
-        if t_2 <= epsilon_pri and t_1 <= epsilon_dual:
-            break
-    z_ADMM = z_next
+    solution_ADMM = cpa.core.CPASOCP(prediction_horizon) \
+        .with_dynamics(A, B) \
+        .with_cost(cost_type, Q, R, P) \
+        .with_constraints(constraints_type, stage_sets, terminal_set) \
+        .ADMM(z_cvxpy, z_CP, x0, z0, eta0)
+
     ADMM_time = time.time() - start_ADMM
+
+    z_ADMM = solution_ADMM.get_z_ADMM_value
+
     f = open("ADMM.txt", "a")
     print(f"problem{problem_loop} converged {ADMM_time}", file=f)
     f.close()
 
-# error = np.linalg.norm(solution.get_z_value - z_cp, np.inf)
-# print(error)
+    error_CP = np.linalg.norm(z_CP - z_cvxpy, np.inf)
+    print("CP and cvxpy", error_CP)
+    error_ADMM = np.linalg.norm(z_ADMM - z_cvxpy, np.inf)
+    print("ADMM and cvxpy", error_ADMM)

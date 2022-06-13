@@ -1,11 +1,11 @@
 import numpy as np
-import scipy as sp
 import cpasocp.core.dynamics as core_dynamics
 import cpasocp.core.costs as core_costs
 import cpasocp.core.constraints as core_constraints
-import cpasocp.core.linear_operators as core_lin_op
 import cpasocp.core.proximal_offline_part as core_offline
 import cpasocp.core.chambolle_pock_algorithm as core_cpa
+import cpasocp.core.precondition as core_pre
+import cpasocp.core.ADMM as core_admm
 
 
 class CPASOCP:
@@ -37,6 +37,7 @@ class CPASOCP:
         self.__eta = None
         self.__alpha = None
         self.__status = None
+        self.__z_ADMM = None
 
     # GETTERS
     @property
@@ -71,6 +72,10 @@ class CPASOCP:
     def get_residuals_cache(self):
         return self.__residuals_cache
 
+    @property
+    def get_z_ADMM_value(self):
+        return self.__z_ADMM
+
     # Dynamics ---------------------------------------------------------------------------------------------------------
 
     def with_dynamics(self, state_dynamics, control_dynamics):
@@ -96,71 +101,53 @@ class CPASOCP:
     # Constraints ------------------------------------------------------------------------------------------------------
 
     def with_constraints(self, constraints_type, stage_sets, terminal_set):
-        n_x = self.__A.shape[1]
-        n_u = self.__B.shape[1]
-
         self.__C_t = stage_sets
         self.__C_N = terminal_set
+        self.__Gamma_x, self.__Gamma_u, self.__Gamma_N = core_constraints.Constraints(
+            constraints_type, self.__A, self.__B, stage_sets, terminal_set).make_gamma_matrix()
 
-        # generate Gamma matrix depends on constraints type
-        if constraints_type == 'No constraints' or constraints_type == 'Real':
-            if type(stage_sets).__name__ == 'Cartesian':
-                pass
-            elif type(stage_sets).__name__ == 'Real':
-                pass
-            else:
-                raise ValueError("stage sets are not Real!")
-            if type(terminal_set).__name__ == 'Real':
-                pass
-            else:
-                raise ValueError("terminal set is not Real!")
-            self.__Gamma_x = np.vstack((np.eye(n_x), np.zeros((n_u, n_x))))
-            self.__Gamma_u = np.vstack((np.zeros((n_x, n_u)), np.eye(n_u)))
-            self.__Gamma_N = np.eye(n_x)
-        elif constraints_type == 'Rectangle':
-            if type(stage_sets).__name__ == 'Cartesian':
-                pass
-            elif type(stage_sets).__name__ == 'Rectangle':
-                pass
-            else:
-                raise ValueError("stage sets are not Rectangle!")
-            if type(terminal_set).__name__ == 'Rectangle':
-                pass
-            else:
-                raise ValueError("terminal set is not Rectangle!")
-            self.__Gamma_x = np.vstack((np.eye(n_x), np.zeros((n_u, n_x))))
-            self.__Gamma_u = np.vstack((np.zeros((n_x, n_u)), np.eye(n_u)))
-            self.__Gamma_N = np.eye(n_x)
-        else:
-            raise ValueError("Constraints type is not support!")
-        self.__constraints = core_constraints.Constraints(constraints_type, stage_sets, terminal_set)
+        self.__constraints = core_constraints.Constraints(constraints_type, self.__A, self.__B, stage_sets,
+                                                          terminal_set)
         return self
 
     # Chambolle-Pock algorithm for Optimal Control Problems -----------------------------------------------------------
 
     def chambolle_pock_algorithm(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
+        L, L_z, L_adj, self.__alpha = core_cpa.make_alpha(
+            self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u, self.__Gamma_N,
+            initial_guess_z)
+
+        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
+            self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
+
+        self.__residuals_cache, self.__z, self.__eta, self.__status = core_cpa.CP_for_ocp(
+            epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
+            initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
+            self.__Gamma_N, self.__C_t, self.__C_N)
+        return self
+
+    # Chambolle-Pock algorithm precondition for Optimal Control Problems -----------------------------------------------
+
+    def chambolle_pock_algorithm_precondition(self, epsilon, initial_state, initial_guess_z, initial_guess_eta,
+                                              scaling_factor):
         n_z = initial_guess_z.shape[0]
 
-        L = core_lin_op.LinearOperator(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u,
-                                       self.__Gamma_N).make_L_op()
-        L_z = L @ initial_guess_z
-        L_adj = core_lin_op.LinearOperator(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x,
-                                           self.__Gamma_u, self.__Gamma_N).make_L_adj()
-        # Choose α1, α2 > 0 such that α1α2∥L∥^2 < 1
-        eigs = np.real(sp.sparse.linalg.eigs(L_adj @ L, k=n_z-2, return_eigenvectors=False))
-        L_norm = np.sqrt(max(eigs))
-        self.__alpha = 0.99 / L_norm
+        L, L_z, L_adj, self.__alpha = core_cpa.make_alpha(
+            self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u, self.__Gamma_N,
+            initial_guess_z)
+
+        T_pre, Sigma_pre = core_pre.precondition(L @ np.identity(n_z), scaling_factor)
 
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon,
             self.__alpha, self.__A, self.__B,
             self.__Q, self.__R,
             self.__P).algorithm()
-        self.__residuals_cache, self.__z, self.__eta, self.__status = core_cpa.chambolle_pock_algorithm_for_ocp(
+        self.__residuals_cache, self.__z, self.__eta, self.__status = core_cpa.CP_precondition_for_ocp(
             epsilon,
             initial_guess_z,
             initial_guess_eta,
-            self.__alpha, L, L_z, L_adj,
+            T_pre, Sigma_pre, L, L_z, L_adj,
             self.__prediction_horizon,
             initial_state,
             self.__A, self.__B,
@@ -174,6 +161,23 @@ class CPASOCP:
             self.__C_t,
             self.__C_N)
         return self
+
+    # ADMM for Optimal Control Problems --------------------------------------------------------------------------------
+
+    def ADMM(self, z_cvxpy, z_CP, initial_state, initial_guess_z, initial_guess_eta):
+        L, L_z, L_adj, self.__alpha = core_admm.make_alpha(
+            self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u, self.__Gamma_N,
+            initial_guess_z)
+
+        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
+            self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
+        self.__z_ADMM = core_admm.ADMM_for_ocp(
+            z_cvxpy, z_CP, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
+            initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
+            self.__Gamma_N, self.__C_t, self.__C_N)
+
+        return self
+
 
     # Class ------------------------------------------------------------------------------------------------------------
 
