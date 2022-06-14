@@ -18,11 +18,48 @@ def _check_dimension(set_type, set_dimension, vector):
         return vector_dimension
 
 
+def _check_rectangle_min_max(rect_min, rect_max, vector):
+    """
+    Function for Rectangle set min and max
+
+    If min > max, raise error.
+    """
+    dimension = vector.size
+    if isinstance(rect_min, list) and isinstance(rect_max, list):
+        for i in range(dimension):
+            if rect_min[i] <= rect_max[i]:
+                pass
+            else:
+                raise ValueError('Rectangle set min max error: rect_min[%d] can not > rect_max[%d]' % (i, i))
+    elif (isinstance(rect_min, list) is False) and isinstance(rect_max, list):
+        for i in range(dimension):
+            if rect_min <= rect_max[i]:
+                pass
+            else:
+                raise ValueError('Rectangle set min max error: rect_min can not > rect_max[%d]' % i)
+    elif isinstance(rect_min, list) and (isinstance(rect_max, list) is False):
+        for i in range(dimension):
+            if rect_min[i] <= rect_max:
+                pass
+            else:
+                raise ValueError('Rectangle set min max error: rect_min[%d] can not > rect_max' % i)
+    else:
+        if rect_min <= rect_max:
+            pass
+        else:
+            raise ValueError('Rectangle set min max error: rect_min can not > rect_max')
+
+
 class Rectangle:
     """
     A set of rectangle of dimension n
     """
     def __init__(self, rect_min, rect_max, dimension=None):
+        """
+        :param rect_min: list or scalar, Rectangle min for v0,...,vn
+        :param rect_max: list or scalar, Rectangle max for v0,...,vn
+        :param dimension: scalar, dimension of input vector
+        """
         self.__rect_min = rect_min
         self.__rect_max = rect_max
         self.__dimension = dimension
@@ -30,11 +67,25 @@ class Rectangle:
 
     def project(self, vector):
         self.__dimension = _check_dimension(type(self), self.__dimension, vector)
+        _check_rectangle_min_max(self.__rect_min, self.__rect_max, vector)
         self.__shape = vector.shape
         projection = np.empty(self.__shape)
-        for i in range(self.__dimension):
-            projection[i] = max(self.__rect_min, vector[i])
-            projection[i] = min(self.__rect_max, projection[i])
+        if isinstance(self.__rect_min, list) and isinstance(self.__rect_max, list):
+            for i in range(self.__dimension):
+                projection[i] = max(self.__rect_min[i], vector[i])
+                projection[i] = min(self.__rect_max[i], projection[i])
+        elif (isinstance(self.__rect_min, list) is False) and isinstance(self.__rect_max, list):
+            for i in range(self.__dimension):
+                projection[i] = max(self.__rect_min, vector[i])
+                projection[i] = min(self.__rect_max[i], projection[i])
+        elif isinstance(self.__rect_min, list) and (isinstance(self.__rect_max, list) is False):
+            for i in range(self.__dimension):
+                projection[i] = max(self.__rect_min[i], vector[i])
+                projection[i] = min(self.__rect_max, projection[i])
+        else:
+            for i in range(self.__dimension):
+                projection[i] = max(self.__rect_min, vector[i])
+                projection[i] = min(self.__rect_max, projection[i])
         return projection
 
     # GETTERS
@@ -42,6 +93,16 @@ class Rectangle:
     def dimension(self):
         """Set dimension"""
         return self.__dimension
+
+    @property
+    def rect_min(self):
+        """Rectangle min"""
+        return self.__rect_min
+
+    @property
+    def rect_max(self):
+        """Rectangle max"""
+        return self.__rect_max
 
 
 class Ball:
@@ -228,3 +289,25 @@ class Cartesian:
     def num_sets(self):
         """Number of sets that make up Cartesian set"""
         return self.__num_sets
+
+    @property
+    def rect_min(self):
+        """list of rectangle_min"""
+        rect_min = [None] * self.__num_sets
+        for i in range(self.__num_sets):
+            if type(self.__sets[i]).__name__ == 'Rectangle':
+                rect_min[i] = self.__sets[i].rect_min
+            else:
+                raise ValueError('%s set type error: sets[%d] is not Rectangle' % (type(self.__sets[i].__name__), i))
+        return rect_min
+
+    @property
+    def rect_max(self):
+        """list of rectangle_max"""
+        rect_max = [None] * self.__num_sets
+        for i in range(self.__num_sets):
+            if type(self.__sets[i]).__name__ == 'Rectangle':
+                rect_max[i] = self.__sets[i].rect_max
+            else:
+                raise ValueError('%s set type error: sets[%d] is not Rectangle' % (type(self.__sets[i].__name__), i))
+        return rect_max

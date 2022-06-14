@@ -75,12 +75,7 @@ class TestChambollePockResults(unittest.TestCase):
         for t in range(N):
             xt_var = x_seq[:, t]  # x_t
             ut_var = u_seq[:, t]  # u_t
-            chi_t = np.reshape(z0[t * (n_x + n_u): t * (n_x + n_u) + n_x], n_x)
-            v_t = np.reshape(z0[t * (n_x + n_u) + n_x: (t + 1) * (n_x + n_u)], n_u)
-            cost += 0.5 * (cp.quad_form(xt_var, Q) + cp.quad_form(ut_var, R)
-                           # + 1 / alpha
-                           # * (cp.sum_squares(xt_var - chi_t) + cp.sum_squares(ut_var - v_t))
-                           )  # Stage cost
+            cost += 0.5 * (cp.quad_form(xt_var, Q) + cp.quad_form(ut_var, R))  # Stage cost
             constraints += [x_seq[:, t + 1] == A @ xt_var + B @ ut_var,  # Dynamics
                             c_t_x_min <= xt_var,
                             xt_var <= c_t_x_max,
@@ -88,10 +83,7 @@ class TestChambollePockResults(unittest.TestCase):
                             ut_var <= c_t_u_max]  # Input Constraints
 
         xN = x_seq[:, N]
-        chi_N = np.reshape(z0[N * (n_x + n_u): N * (n_x + n_u) + n_x], n_x)
-        cost += 0.5 * (cp.quad_form(xN, P)
-                       # + 1 / alpha * cp.sum_squares(xN - chi_N)
-                       )  # Terminal cost
+        cost += 0.5 * cp.quad_form(xN, P)  # Terminal cost
         constraints += [c_N_min <= xN, xN <= c_N_max]
 
         # Solution

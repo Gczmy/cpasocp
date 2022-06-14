@@ -132,7 +132,9 @@ def ADMM_for_ocp(z_cvxpy, z_CP, initial_guess_z, initial_guess_eta, alpha, L, L_
         # epsilon_dual = np.sqrt(n_z) * epsilon + epsilon * np.linalg.norm(L_adj @ eta_prev)
         # if t_2 <= epsilon_pri and t_1 <= epsilon_dual:
         #     break
-
+        status = 0  # converge success
+        if i >= 9000:
+            status = 1  # converge failed
         if np.linalg.norm(z_next - z_cvxpy, np.inf) <= np.linalg.norm(z_CP - z_cvxpy, np.inf):
             break
-    return z_next
+    return z_next, status

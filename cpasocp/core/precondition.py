@@ -11,4 +11,6 @@ def precondition(L, scaling_factor):
         sigma[i] = scaling_factor / q[i]
     T = np.diagflat(tau)
     Sigma = np.diagflat(sigma)
+    print(T)
+    print(Sigma)
     return T, Sigma

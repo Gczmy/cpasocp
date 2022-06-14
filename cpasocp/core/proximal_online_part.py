@@ -2,19 +2,6 @@ import numpy as np
 import scipy as sp
 
 
-def precondition(L, scaling_factor):
-    tau = [None] * L.shape[1]
-    sigma = [None] * L.shape[0]
-    q = np.count_nonzero(L, axis=1)
-    for j in range(L.shape[1]):
-        tau[j] = 1 / (scaling_factor * np.linalg.norm(L[:, j]) ** 2)
-    for i in range(L.shape[0]):
-        sigma[i] = scaling_factor / q[i]
-    T = np.diagflat(tau)
-    Sigma = np.diagflat(sigma)
-    return T, Sigma
-
-
 def proximal_of_h_online_part(prediction_horizon, proximal_lambda, initial_state, initial_guess_vector, state_dynamics,
                               control_dynamics, control_weight, P_seq, R_tilde_seq, K_seq,
                               A_bar_seq):

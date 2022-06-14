@@ -23,7 +23,7 @@ for problem_loop in range(200):
     n_u = np.random.randint(9, n_x)  # input dimension
 
     # A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
-    A = np.random.rand(n_x, n_x)  # n x n matrices
+    A = 2 * np.random.rand(n_x, n_x)  # n x n matrices
     # B = np.array([[1, 1], [0.5, 1]])  # n x u matrices
     B = np.random.rand(n_x, n_u)  # n x u matrices
 
@@ -76,6 +76,12 @@ for problem_loop in range(200):
     N = prediction_horizon
     n_x = A.shape[1]
     n_u = B.shape[1]
+    c_t_x_min = - 2 * np.ones(n_x)
+    c_t_x_max = 2 * np.ones(n_x)
+    c_t_u_min = - 2 * np.ones(n_u)
+    c_t_u_max = 2 * np.ones(n_u)
+    c_N_min = - 2 * np.ones(n_x)
+    c_N_max = 2 * np.ones(n_x)
 
     alpha = solution.get_alpha
     # start time for cvxpy
@@ -92,19 +98,16 @@ for problem_loop in range(200):
     for t in range(N):
         xt_var = x_seq[:, t]  # x_t
         ut_var = u_seq[:, t]  # u_t
-        chi_t = np.reshape(z0[t * (n_x + n_u): t * (n_x + n_u) + n_x], n_x)
-        v_t = np.reshape(z0[t * (n_x + n_u) + n_x: (t + 1) * (n_x + n_u)], n_u)
-        cost += 0.5 * (cp.quad_form(xt_var, Q) + cp.quad_form(ut_var, R)
-                       # + 1 / alpha
-                       # * (cp.sum_squares(xt_var - chi_t) + cp.sum_squares(ut_var - v_t))
-                       )  # Stage cost
-        constraints += [x_seq[:, t + 1] == A @ xt_var + B @ ut_var]  # Input Constraints
+        cost += 0.5 * (cp.quad_form(xt_var, Q) + cp.quad_form(ut_var, R))  # Stage cost
+        constraints += [x_seq[:, t + 1] == A @ xt_var + B @ ut_var,  # Dynamics
+                        c_t_x_min <= xt_var,
+                        xt_var <= c_t_x_max,
+                        c_t_u_min <= ut_var,
+                        ut_var <= c_t_u_max]  # Input Constraints
 
     xN = x_seq[:, N]
-    chi_N = np.reshape(z0[N * (n_x + n_u): N * (n_x + n_u) + n_x], n_x)
-    cost += 0.5 * (cp.quad_form(xN, P)
-                   # + 1 / alpha * cp.sum_squares(xN - chi_N)
-                   )  # Terminal cost
+    cost += 0.5 * cp.quad_form(xN, P)  # Terminal cost
+    constraints += [c_N_min <= xN, xN <= c_N_max]
 
     # Solution
     x0_cp.value = x0

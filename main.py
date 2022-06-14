@@ -8,8 +8,8 @@ import cpasocp.core.sets as core_sets
 
 # dynamics
 prediction_horizon = 10
-n_x = 10  # state dimension
-n_u = 10  # input dimension
+n_x = 2  # state dimension
+n_u = 2  # input dimension
 
 # A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
 A = 2 * np.random.rand(n_x, n_x)  # n x n matrices
@@ -24,11 +24,13 @@ P = 5 * np.eye(n_x)  # n x n matrix
 
 # constraints
 constraints_type = 'Rectangle'
-rectangle = core_sets.Rectangle(rect_min=-2, rect_max=2)
+rect_min = [-1000, -1, -1000, -1]  # constraints for x^0, x^1, u^0, u^1
+rect_max = [1000, 1, 1000, 1]  # constraints for x^0, x^1, u^0, u^1
+rectangle = core_sets.Rectangle(rect_min=rect_min, rect_max=rect_max)
 stage_sets_list = [rectangle] * prediction_horizon
 stage_sets = core_sets.Cartesian(stage_sets_list)
-terminal_set = core_sets.Rectangle(rect_min=-2, rect_max=2)
-
+# stage_sets = core_sets.Rectangle(rect_min=rect_min, rect_max=rect_max)
+terminal_set = core_sets.Rectangle(rect_min=rect_min, rect_max=rect_max)
 # x0 = np.array([0.2, 0.5])
 x0 = 0.5 * np.random.rand(n_x)
 
@@ -45,14 +47,14 @@ solution = cpa.core.CPASOCP(prediction_horizon) \
     .chambolle_pock_algorithm(epsilon, x0, z0, eta0)
 
 print(solution)
-print(solution.get_z_value)
+# print(solution.get_z_value)
 
-plt.figure(2)
-plt.title('semilogy')
-plt.xlabel('Iterations')
-plt.ylabel('Residuals')
-plt.semilogy(solution.get_residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
-plt.legend()
-plt.show()
+# plt.figure(2)
+# plt.title('semilogy')
+# plt.xlabel('Iterations')
+# plt.ylabel('Residuals')
+# plt.semilogy(solution.get_residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
+# plt.legend()
+# plt.show()
 
 
