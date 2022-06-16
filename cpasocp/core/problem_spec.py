@@ -35,11 +35,8 @@ class CPASOCP:
         self.__constraints = None
         self.__residuals_cache = None
         self.__z = None
-        self.__eta = None
         self.__alpha = None
         self.__status = None
-        self.__z_ADMM = None
-        self.__ADMM_status = None
         self.__scaling_factor = None
 
     # GETTERS
@@ -60,10 +57,6 @@ class CPASOCP:
         return self.__z
 
     @property
-    def get_eta_value(self):
-        return self.__eta
-
-    @property
     def get_alpha(self):
         return self.__alpha
 
@@ -74,14 +67,6 @@ class CPASOCP:
     @property
     def get_residuals_cache(self):
         return self.__residuals_cache
-
-    @property
-    def get_z_ADMM_value(self):
-        return self.__z_ADMM
-
-    @property
-    def get_ADMM_status(self):
-        return self.__ADMM_status
 
     @property
     def get_scaling_factor(self):
@@ -149,7 +134,7 @@ class CPASOCP:
 
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
-        self.__residuals_cache, self.__z, self.__eta, self.__status = core_cpa.CP_for_ocp(
+        self.__residuals_cache, self.__z, self.__status = core_cpa.CP_for_ocp(
             epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
             initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
             self.__Gamma_N, self.__C_t, self.__C_N)
@@ -164,7 +149,7 @@ class CPASOCP:
 
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
-        self.__residuals_cache, self.__z, self.__eta, self.__status = core_cpa.CP_scaling_for_ocp(
+        self.__residuals_cache, self.__z, self.__status = core_cpa.CP_scaling_for_ocp(
             self.__scaling_factor, epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
             initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
             self.__Gamma_N, self.__C_t, self.__C_N)
@@ -186,7 +171,7 @@ class CPASOCP:
             self.__alpha, self.__A, self.__B,
             self.__Q, self.__R,
             self.__P).algorithm()
-        self.__residuals_cache, self.__z, self.__eta, self.__status = core_ext.CP_precondition(
+        self.__residuals_cache, self.__z, self.__status = core_ext.CP_precondition(
             epsilon,
             initial_guess_z,
             initial_guess_eta,
@@ -215,7 +200,7 @@ class CPASOCP:
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
 
-        self.__z_ADMM, self.__ADMM_status = core_admm.ADMM_for_ocp(
+        self.__z, self.__status = core_admm.ADMM_for_ocp(
             epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj,
             self.__prediction_horizon, initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq,
             A_bar_seq, self.__Gamma_x, self.__Gamma_N, self.__C_t, self.__C_N)
@@ -232,7 +217,7 @@ class CPASOCP:
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
 
-        self.__z_ADMM, self.__ADMM_status = core_admm.ADMM_scaling_for_ocp(
+        self.__z, self.__status = core_admm.ADMM_scaling_for_ocp(
             self.__scaling_factor, epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj,
             self.__prediction_horizon, initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq,
             A_bar_seq, self.__Gamma_x, self.__Gamma_N, self.__C_t, self.__C_N)

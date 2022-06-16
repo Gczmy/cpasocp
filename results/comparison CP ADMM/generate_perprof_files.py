@@ -7,20 +7,21 @@ import cpasocp.core.sets as core_sets
 f = open("Chambolle-Pock.txt", "w")
 print("---\nalgname: Chambolle-Pock\nsuccess: converged\nfree_format: True\n---", file=f)
 f.close()
-f = open("cvxpy.txt", "w")
-print("---\nalgname: cvxpy\nsuccess: converged\nfree_format: True\n---", file=f)
-f.close()
+# f = open("cvxpy.txt", "w")
+# print("---\nalgname: cvxpy\nsuccess: converged\nfree_format: True\n---", file=f)
+# f.close()
 f = open("ADMM.txt", "w")
 print("---\nalgname: ADMM\nsuccess: converged\nfree_format: True\n---", file=f)
 f.close()
-for problem_loop in range(200):
-    # Chambolle-Pock method
-    # ------------------------------------------------------------------------------------------------------------------
+
+for problem_loop in range(100):
     # dynamics
-    prediction_horizon = np.random.randint(10, 20)
+    prediction_horizon = np.random.randint(8, 10)
 
     n_x = np.random.randint(10, 20)  # state dimension
     n_u = np.random.randint(9, n_x)  # input dimension
+    # n_x = 4  # state dimension
+    # n_u = 3  # input dimension
 
     # A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
     A = 2 * np.random.rand(n_x, n_x)  # n x n matrices
@@ -35,20 +36,25 @@ for problem_loop in range(200):
 
     # constraints
     constraints_type = 'Rectangle'
-    rectangle = core_sets.Rectangle(rect_min=-2, rect_max=2)
+    rect_min = [-3] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
+    rect_max = [3] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
+
+    rectangle = core_sets.Rectangle(rect_min=rect_min, rect_max=rect_max)
     stage_sets_list = [rectangle] * prediction_horizon
     stage_sets = core_sets.Cartesian(stage_sets_list)
-    terminal_set = core_sets.Rectangle(rect_min=-2, rect_max=2)
+    terminal_set = core_sets.Rectangle(rect_min=rect_min, rect_max=rect_max)
     # x0 = np.array([0.2, 0.5])
-    x0 = 0.5 * np.random.rand(n_x)
-
-    # algorithm parameters
-    epsilon_CP = 1e-4
+    x0 = 0.5 * np.random.rand(n_x) + 0.1
 
     n_z = (prediction_horizon + 1) * A.shape[1] + prediction_horizon * B.shape[1]
-    z0 = 0.5 * np.random.rand(n_z, 1)
-    eta0 = 0.5 * np.random.rand(n_z, 1)
+    z0 = 0.5 * np.random.rand(n_z, 1) + 0.1
+    eta0 = 0.5 * np.random.rand(n_z, 1) + 0.1
 
+    # algorithm parameters
+    epsilon_CP = 1e-3
+
+    # Chambolle-Pock method
+    # ------------------------------------------------------------------------------------------------------------------
     # start time for chambolle-pock method
     start_CP = time.time()
 
@@ -76,12 +82,20 @@ for problem_loop in range(200):
     N = prediction_horizon
     n_x = A.shape[1]
     n_u = B.shape[1]
-    c_t_x_min = - 2 * np.ones(n_x)
-    c_t_x_max = 2 * np.ones(n_x)
-    c_t_u_min = - 2 * np.ones(n_u)
-    c_t_u_max = 2 * np.ones(n_u)
-    c_N_min = - 2 * np.ones(n_x)
-    c_N_max = 2 * np.ones(n_x)
+    c_t_x_min = np.zeros(n_x)
+    c_t_x_max = np.zeros(n_x)
+    c_t_u_min = np.zeros(n_u)
+    c_t_u_max = np.zeros(n_u)
+    c_N_min = np.zeros(n_x)
+    c_N_max = np.zeros(n_x)
+    for i in range(n_x):
+        c_t_x_min[i] = rect_min[i]
+        c_t_x_max[i] = rect_max[i]
+        c_N_min[i] = rect_min[i]
+        c_N_max[i] = rect_max[i]
+    for i in range(n_u):
+        c_t_u_min[i] = rect_min[i + n_x]
+        c_t_u_max[i] = rect_max[i + n_x]
 
     alpha = solution.get_alpha
     # start time for cvxpy
@@ -112,41 +126,44 @@ for problem_loop in range(200):
     # Solution
     x0_cp.value = x0
     problem = cp.Problem(cp.Minimize(cost), constraints)
-    problem.solve()
-
-    # Construct z, z are all the states and inputs in a big vector
-    z_cp = np.reshape(x_seq.value[:, 0], (n_x, 1))  # x_0
-    z_cp = np.vstack((z_cp, np.reshape(u_seq.value[:, 0], (n_u, 1))))  # u_0
-
-    for i in range(1, N):
-        z_cp = np.vstack((z_cp, np.reshape(x_seq.value[:, i], (n_x, 1))))
-        z_cp = np.vstack((z_cp, np.reshape(u_seq.value[:, i], (n_u, 1))))
-
-    z_cvxpy = np.vstack((z_cp, np.reshape(x_seq.value[:, N], (n_x, 1))))  # xN
-    cvxpy_time = time.time() - start_cvxpy
-    f = open("cvxpy.txt", "a")
-    print(f"problem{problem_loop} converged {cvxpy_time}", file=f)
-    f.close()
+    # problem.solve()
+    #
+    # # Construct z, z are all the states and inputs in a big vector
+    # z_cp = np.reshape(x_seq.value[:, 0], (n_x, 1))  # x_0
+    # z_cp = np.vstack((z_cp, np.reshape(u_seq.value[:, 0], (n_u, 1))))  # u_0
+    #
+    # for i in range(1, N):
+    #     z_cp = np.vstack((z_cp, np.reshape(x_seq.value[:, i], (n_x, 1))))
+    #     z_cp = np.vstack((z_cp, np.reshape(u_seq.value[:, i], (n_u, 1))))
+    #
+    # z_cvxpy = np.vstack((z_cp, np.reshape(x_seq.value[:, N], (n_x, 1))))  # xN
+    # cvxpy_time = time.time() - start_cvxpy
+    # f = open("cvxpy.txt", "a")
+    # print(f"problem{problem_loop} converged {cvxpy_time}", file=f)
+    # f.close()
 
     # ADMM method
     # ------------------------------------------------------------------------------------------------------------------
+    epsilon_ADMM = 1e-6
     start_ADMM = time.time()
 
     solution_ADMM = cpa.core.CPASOCP(prediction_horizon) \
         .with_dynamics(A, B) \
         .with_cost(cost_type, Q, R, P) \
         .with_constraints(constraints_type, stage_sets, terminal_set) \
-        .ADMM(z_cvxpy, z_CP, x0, z0, eta0)
+        .ADMM(epsilon_ADMM, x0, z0, eta0)
 
     ADMM_time = time.time() - start_ADMM
 
-    z_ADMM = solution_ADMM.get_z_ADMM_value
+    z_ADMM = solution_ADMM.get_z_value
 
-    f = open("ADMM.txt", "a")
-    print(f"problem{problem_loop} converged {ADMM_time}", file=f)
-    f.close()
+    if solution_ADMM.get_status == 0:
+        f = open("ADMM.txt", "a")
+        print(f"problem{problem_loop} converged {ADMM_time}", file=f)
+        f.close()
+    else:
+        f = open("ADMM.txt", "a")
+        print(f"problem{problem_loop} failed {ADMM_time}", file=f)
+        f.close()
 
-    error_CP = np.linalg.norm(z_CP - z_cvxpy, np.inf)
-    print("CP and cvxpy", error_CP)
-    error_ADMM = np.linalg.norm(z_ADMM - z_cvxpy, np.inf)
-    print("ADMM and cvxpy", error_ADMM)
+    print('problem_loop:', problem_loop)

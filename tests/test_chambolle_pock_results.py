@@ -36,13 +36,11 @@ class TestChambollePockResults(unittest.TestCase):
 
         # algorithm parameters
         epsilon = 1e-4
-        initial_state = np.array([0.2, 0.5])
-        # initial_state = 0.5 * np.random.rand(n_x)
+        # initial_state = np.array([0.2, 0.5])
+        initial_state = 0.5 * np.random.rand(n_x) + 0.1
         n_z = (prediction_horizon + 1) * A.shape[1] + prediction_horizon * B.shape[1]
-        z0 = np.zeros((n_z, 1))
-        # z0 = np.array(np.random.rand(n_z, 1))
-        eta0 = np.zeros((n_z, 1))
-        # eta0 = np.array(np.random.rand(n_L, 1))
+        z0 = 0.5 * np.array(np.random.rand(n_z, 1)) + 0.1
+        eta0 = 0.5 * np.array(np.random.rand(n_z, 1)) + 0.1
 
         # Chambolle-Pock method
         solution = cpa.core.CPASOCP(prediction_horizon) \

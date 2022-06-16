@@ -112,7 +112,7 @@ def ADMM_for_ocp(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_a
         z_next = core_online.proximal_of_h_online_part(prediction_horizon=prediction_horizon,
                                                        proximal_lambda=proximal_lambda,
                                                        initial_state=x0,
-                                                       initial_guess_vector=eta_prev-u_prev,
+                                                       initial_guess_vector=L_adj @ eta_prev-u_prev,
                                                        state_dynamics=A,
                                                        control_dynamics=B,
                                                        control_weight=R,
@@ -121,22 +121,20 @@ def ADMM_for_ocp(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_a
                                                        K_seq=K_seq,
                                                        A_bar_seq=A_bar_seq)
         eta_next = proj_to_c(z_next + u_prev, prediction_horizon, Gamma_x, Gamma_N, stage_sets, terminal_set)
-        u_next = u_prev + z_next - eta_next
+        u_next = u_prev + z_next - L_adj @ eta_next
 
-        s = rho * (eta_next - eta_prev)
-        r = z_next - eta_next
+        s = rho * L_adj @ (eta_next - eta_prev)
+        r = z_next - L_adj @ eta_next
         t_1 = np.linalg.norm(s)
         t_2 = np.linalg.norm(r)
-        epsilon_pri = np.sqrt(n_z) * epsilon + epsilon * max(np.linalg.norm(z_prev),
-                                                             np.linalg.norm(eta_prev))
-        epsilon_dual = np.sqrt(n_z) * epsilon + epsilon * np.linalg.norm(eta_prev)
-        if t_2 <= epsilon_pri and t_1 <= epsilon_dual:
-            break
+        epsilon_pri = epsilon * max(np.linalg.norm(z_next), np.linalg.norm(L_adj @ eta_next))
+        epsilon_dual = epsilon * np.linalg.norm(eta_next)
         status = 0  # converge success
         if i >= 9000:
             status = 1  # converge failed
-        # if np.linalg.norm(z_next - z_cvxpy, np.inf) <= np.linalg.norm(z_CP - z_cvxpy, np.inf):
-        #     break
+        if t_2 <= epsilon_pri and t_1 <= epsilon_dual:
+            break
+
     return z_next, status
 
 
@@ -226,12 +224,11 @@ def ADMM_scaling_for_ocp(scaling_factor, epsilon, initial_guess_z, initial_guess
         r = z_next_scaling_back - eta_next_scaling_back
         t_1 = np.linalg.norm(s)
         t_2 = np.linalg.norm(r)
-        epsilon_pri = np.sqrt(n_z) * epsilon + epsilon * max(np.linalg.norm(z_prev_scaling_back),
-                                                             np.linalg.norm(eta_prev_scaling_back))
-        epsilon_dual = np.sqrt(n_z) * epsilon + epsilon * np.linalg.norm(eta_prev_scaling_back)
-        if t_2 <= epsilon_pri and t_1 <= epsilon_dual:
-            break
+        epsilon_pri = epsilon * max(np.linalg.norm(z_next_scaling_back), np.linalg.norm(eta_next_scaling_back))
+        epsilon_dual = epsilon * np.linalg.norm(eta_next_scaling_back)
         status = 0  # converge success
         if i >= 9000:
             status = 1  # converge failed
+        if t_2 <= epsilon_pri and t_1 <= epsilon_dual:
+            break
     return z_next_scaling_back, status

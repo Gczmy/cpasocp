@@ -19,18 +19,15 @@ f.close()
 f = open("ADMM_scaling.txt", "w")
 print("---\nalgname: ADMM scaling\nsuccess: converged\nfree_format: True\n---", file=f)
 f.close()
-f = open("scaling_devided_ADMM.txt", "w")
-f.close()
+
 for problem_loop in range(100):
-    # Chambolle-Pock method
-    # ------------------------------------------------------------------------------------------------------------------
     # dynamics
     prediction_horizon = np.random.randint(8, 10)
 
-    # n_x = np.random.randint(10, 20)  # state dimension
-    # n_u = np.random.randint(9, n_x)  # input dimension
-    n_x = 4  # state dimension
-    n_u = 3  # input dimension
+    n_x = np.random.randint(10, 20)  # state dimension
+    n_u = np.random.randint(9, n_x)  # input dimension
+    # n_x = 10  # state dimension
+    # n_u = 10  # input dimension
 
     # A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
     A = 2 * np.random.rand(n_x, n_x)  # n x n matrices
@@ -45,11 +42,11 @@ for problem_loop in range(100):
 
     # constraints
     constraints_type = 'Rectangle'
-    rect_min = [0] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
-    rect_max = [0] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
+    rect_min = [-3] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
+    rect_max = [3] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
     for i in range(n_x + n_u):
-        rect_min[i] = np.random.random()
-        rect_max[i] = np.random.random()
+        rect_min[i] = np.random.rand()
+        rect_max[i] = np.random.rand()
         if (i % 2) == 0:
             rect_min[i] = rect_min[i] * -100000 - 100000
             rect_max[i] = rect_max[i] * 100000 + 100000
@@ -61,28 +58,33 @@ for problem_loop in range(100):
     stage_sets = core_sets.Cartesian(stage_sets_list)
     terminal_set = core_sets.Rectangle(rect_min=rect_min, rect_max=rect_max)
     # x0 = np.array([0.2, 0.5])
-    x0 = 0.5 * np.random.rand(n_x)
-
+    x0 = 0.5 * np.random.rand(n_x) + 0.1
     for i in range(n_x):
-        x0[i] = np.random.random()
+        x0[i] = np.random.rand() - 0.5
         if (i % 2) == 0:
-            x0[i] = x0[i] * 3000
+            x0[i] *= 1000
         else:
-            x0[i] = x0[i] * 200
+            x0[i] *= 100
+
     n_z = (prediction_horizon + 1) * A.shape[1] + prediction_horizon * B.shape[1]
-    z0 = 0.5 * np.random.rand(n_z, 1)
-    eta0 = 0.5 * np.random.rand(n_z, 1)
+    z0 = 0.5 * np.random.rand(n_z, 1) + 0.1
+    eta0 = 0.5 * np.random.rand(n_z, 1) + 0.1
     for j in range(prediction_horizon):
         for i in range(n_x + n_u):
             z0[j * (n_x + n_u) + i] = np.random.random()
+            eta0[j * (n_x + n_u) + i] = np.random.random()
             if ((j * (n_x + n_u) + i) % 2) == 0:
-                z0[j * (n_x + n_u) + i] *= 3000
+                z0[j * (n_x + n_u) + i] *= 1000
+                eta0[j * (n_x + n_u) + i] *= 1000
             else:
-                z0[j * (n_x + n_u) + i] *= 200
+                z0[j * (n_x + n_u) + i] *= 100
+                eta0[j * (n_x + n_u) + i] *= 100
 
     # algorithm parameters
-    epsilon = 1e-4
+    epsilon_CP = 1e-3
 
+    # Chambolle-Pock method
+    # ------------------------------------------------------------------------------------------------------------------
     # start time for chambolle-pock method
     start_CP = time.time()
 
@@ -90,7 +92,7 @@ for problem_loop in range(100):
         .with_dynamics(A, B) \
         .with_cost(cost_type, Q, R, P) \
         .with_constraints(constraints_type, stage_sets, terminal_set) \
-        .chambolle_pock_algorithm(epsilon, x0, z0, eta0)
+        .chambolle_pock_algorithm(epsilon_CP, x0, z0, eta0)
 
     CP_time = time.time() - start_CP
 
@@ -125,7 +127,6 @@ for problem_loop in range(100):
         c_t_u_min[i] = rect_min[i + n_x]
         c_t_u_max[i] = rect_max[i + n_x]
 
-    alpha = solution.get_alpha
     # start time for cvxpy
     start_cvxpy = time.time()
 
@@ -172,13 +173,12 @@ for problem_loop in range(100):
 
     # CP_scaling
     # ------------------------------------------------------------------------------------------------------------------
-
     start_CP_scaling = time.time()
     solution_CP_scaling = cpa.core.CPASOCP(prediction_horizon) \
         .with_dynamics(A, B) \
         .with_cost(cost_type, Q, R, P) \
         .with_constraints_scaling(constraints_type, stage_sets, terminal_set) \
-        .CP_scaling(epsilon, x0, z0, eta0)
+        .CP_scaling(epsilon_CP, x0, z0, eta0)
 
     CP_scaling_time = time.time() - start_CP_scaling
 
@@ -195,19 +195,20 @@ for problem_loop in range(100):
 
     # ADMM method
     # ------------------------------------------------------------------------------------------------------------------
+    epsilon_ADMM = 1e-6
     start_ADMM = time.time()
 
     solution_ADMM = cpa.core.CPASOCP(prediction_horizon) \
         .with_dynamics(A, B) \
         .with_cost(cost_type, Q, R, P) \
         .with_constraints(constraints_type, stage_sets, terminal_set) \
-        .ADMM(epsilon, x0, z0, eta0)
+        .ADMM(epsilon_ADMM, x0, z0, eta0)
 
     ADMM_time = time.time() - start_ADMM
 
-    z_ADMM = solution_ADMM.get_z_ADMM_value
+    z_ADMM = solution_ADMM.get_z_value
 
-    if solution_ADMM.get_ADMM_status == 0:
+    if solution_ADMM.get_status == 0:
         f = open("ADMM.txt", "a")
         print(f"problem{problem_loop} converged {ADMM_time}", file=f)
         f.close()
@@ -224,13 +225,13 @@ for problem_loop in range(100):
         .with_dynamics(A, B) \
         .with_cost(cost_type, Q, R, P) \
         .with_constraints_scaling(constraints_type, stage_sets, terminal_set) \
-        .ADMM_scaling(epsilon, x0, z0, eta0)
+        .ADMM_scaling(epsilon_ADMM, x0, z0, eta0)
 
     ADMM_scaling_time = time.time() - start_ADMM_scaling
 
-    z_ADMM_scaling = solution_ADMM_scaling.get_z_ADMM_value
+    z_ADMM_scaling = solution_ADMM_scaling.get_z_value
 
-    if solution_ADMM_scaling.get_ADMM_status == 0:
+    if solution_ADMM_scaling.get_status == 0:
         f = open("ADMM_scaling.txt", "a")
         print(f"problem{problem_loop} converged {ADMM_scaling_time}", file=f)
         f.close()
@@ -239,11 +240,8 @@ for problem_loop in range(100):
         print(f"problem{problem_loop} failed {ADMM_scaling_time}", file=f)
         f.close()
 
-    scaling_devided_ADMM = CP_scaling_time / ADMM_time
-    f = open("scaling_devided_ADMM.txt", "a")
-    print(f"{scaling_devided_ADMM}", file=f)
-    f.close()
     print('problem_loop:', problem_loop)
+
     # error_CP = np.linalg.norm(z_CP - z_cvxpy, np.inf)
     # print("CP and cvxpy", error_CP)
     # error_CP_scaling = np.linalg.norm(z_CP_scaling - z_cvxpy, np.inf)

@@ -97,9 +97,9 @@ def CP_for_ocp(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_adj
     n_u = B.shape[1]
     n_z = N * (n_x + n_u) + n_x
     n_L = L_z.shape[0]
-    x0 = initial_state
-    z0 = initial_guess_z
-    eta0 = initial_guess_eta
+    x0 = initial_state.copy()
+    z0 = initial_guess_z.copy()
+    eta0 = initial_guess_eta.copy()
     if z0.shape[0] != n_z:
         raise ValueError("Initial guess vector z row is not correct")
     if eta0.shape[0] != n_L:
@@ -142,8 +142,9 @@ def CP_for_ocp(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_adj
             status = 1  # converge failed
         if t_1 <= epsilon and t_2 <= epsilon and t_3 <= epsilon:
             break
+
     residuals_cache = residuals_cache[0:i, :]
-    return residuals_cache, z_next, eta_next, status
+    return residuals_cache, z_next, status
 
 
 def CP_scaling_for_ocp(scaling_factor, epsilon, initial_guess_z,
@@ -246,4 +247,4 @@ def CP_scaling_for_ocp(scaling_factor, epsilon, initial_guess_z,
         if t_1 <= epsilon and t_2 <= epsilon and t_3 <= epsilon:
             break
     residuals_cache = residuals_cache[0:i, :]
-    return residuals_cache, z_next_scaling_back, eta_next, status
+    return residuals_cache, z_next_scaling_back, status
