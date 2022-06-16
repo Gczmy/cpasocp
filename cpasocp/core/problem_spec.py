@@ -40,6 +40,7 @@ class CPASOCP:
         self.__status = None
         self.__z_ADMM = None
         self.__ADMM_status = None
+        self.__scaling_factor = None
 
     # GETTERS
     @property
@@ -82,6 +83,10 @@ class CPASOCP:
     def get_ADMM_status(self):
         return self.__ADMM_status
 
+    @property
+    def get_scaling_factor(self):
+        return self.__scaling_factor
+
     # Dynamics ---------------------------------------------------------------------------------------------------------
 
     def with_dynamics(self, state_dynamics, control_dynamics):
@@ -119,8 +124,8 @@ class CPASOCP:
     # Constraints scaling ----------------------------------------------------------------------------------------------
 
     def with_constraints_scaling(self, constraints_type, stage_sets, terminal_set):
-        # self.__Gamma_x, self.__Gamma_u, self.__Gamma_N, self.__C_t, self.__C_N = core_constraints.Constraints(
-        #     constraints_type, self.__A, self.__B, stage_sets, terminal_set).make_gamma_matrix_scaling()
+        self.__scaling_factor = core_con_sca.Constraints(
+            constraints_type, self.__A, self.__B, stage_sets, terminal_set).scaling_factor
         self.__Gamma_x = core_con_sca.Constraints(
             constraints_type, self.__A, self.__B, stage_sets, terminal_set).Gamma_x
         self.__Gamma_u = core_con_sca.Constraints(
@@ -135,7 +140,7 @@ class CPASOCP:
             constraints_type, self.__A, self.__B, stage_sets, terminal_set)
         return self
 
-    # Chambolle-Pock algorithm for Optimal Control Problems -----------------------------------------------------------
+    # Chambolle-Pock algorithm for Optimal Control Problems ------------------------------------------------------------
 
     def chambolle_pock_algorithm(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
         L, L_z, L_adj, self.__alpha = core_cpa.make_alpha(
@@ -150,10 +155,24 @@ class CPASOCP:
             self.__Gamma_N, self.__C_t, self.__C_N)
         return self
 
+    # Chambolle-Pock algorithm scaling for Optimal Control Problems ----------------------------------------------------
+
+    def CP_scaling(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
+        L, L_z, L_adj, self.__alpha = core_cpa.make_alpha(
+            self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u, self.__Gamma_N,
+            initial_guess_z)
+
+        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
+            self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
+        self.__residuals_cache, self.__z, self.__eta, self.__status = core_cpa.CP_scaling_for_ocp(
+            self.__scaling_factor, epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
+            initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
+            self.__Gamma_N, self.__C_t, self.__C_N)
+        return self
+
     # Chambolle-Pock algorithm precondition for Optimal Control Problems -----------------------------------------------
 
-    def CP_precondition(self, epsilon, initial_state, initial_guess_z, initial_guess_eta,
-                                              scaling_factor):
+    def CP_precondition(self, epsilon, initial_state, initial_guess_z, initial_guess_eta, scaling_factor):
         n_z = initial_guess_z.shape[0]
 
         L, L_z, L_adj, self.__alpha = core_cpa.make_alpha(
@@ -188,23 +207,36 @@ class CPASOCP:
 
     # ADMM for Optimal Control Problems --------------------------------------------------------------------------------
 
-    def ADMM(self, z_cvxpy, z_CP, initial_state, initial_guess_z, initial_guess_eta):
+    def ADMM(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
         L, L_z, L_adj, self.__alpha = core_admm.make_alpha(
             self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u, self.__Gamma_N,
             initial_guess_z)
 
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
+
         self.__z_ADMM, self.__ADMM_status = core_admm.ADMM_for_ocp(
-            z_cvxpy, z_CP, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
-            initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
-            self.__Gamma_N, self.__C_t, self.__C_N)
+            epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj,
+            self.__prediction_horizon, initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq,
+            A_bar_seq, self.__Gamma_x, self.__Gamma_N, self.__C_t, self.__C_N)
 
         return self
 
-    # Chambolle-Pock algorithm scaling for Optimal Control Problems ----------------------------------------------------
+    # ADMM scaling for Optimal Control Problems ------------------------------------------------------------------------
 
-    def CP_scaling(self, epsilon, initial_state, initial_guess_z, initial_guess_eta, scaling_factor):
+    def ADMM_scaling(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
+        L, L_z, L_adj, self.__alpha = core_admm.make_alpha(
+            self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u, self.__Gamma_N,
+            initial_guess_z)
+
+        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
+            self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
+
+        self.__z_ADMM, self.__ADMM_status = core_admm.ADMM_scaling_for_ocp(
+            self.__scaling_factor, epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj,
+            self.__prediction_horizon, initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq,
+            A_bar_seq, self.__Gamma_x, self.__Gamma_N, self.__C_t, self.__C_N)
+
         return self
 
     # Class ------------------------------------------------------------------------------------------------------------

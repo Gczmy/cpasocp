@@ -6,13 +6,14 @@ import cpasocp.core.sets as core_sets
 import time
 
 
-class TestPrecondition(unittest.TestCase):
+class TestScaling(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
 
-    def test_precondition(self):
+    def test_scaling(self):
+        tol = 1e-4
         # dynamics
         prediction_horizon = 20
         n_x = 10  # state dimension
@@ -142,7 +143,7 @@ class TestPrecondition(unittest.TestCase):
 
         print('CP_time:', CP_time)
         print('scaling_time:', scaling_time)
-        # self.assertAlmostEqual(error, 0, delta=tol)
+        self.assertAlmostEqual(error_scaling_cvxpy, 0, delta=tol)
 
 if __name__ == '__main__':
     unittest.main()

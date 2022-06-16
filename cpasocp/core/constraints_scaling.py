@@ -22,6 +22,7 @@ class Constraints:
         self.__Gamma_N = None
         self.__C_t = stage_sets
         self.__C_N = terminal_set
+        self.__scaling_factor = None
         self.make_gamma_matrix_scaling()
 
     def make_gamma_matrix_scaling(self):
@@ -54,50 +55,77 @@ class Constraints:
                 pass
             else:
                 raise ValueError("terminal set is not Rectangle while constraints_type is %s" % self.__constraints_type)
-            num_sets = self.__C_t.num_sets
+            self.__Gamma_x = np.vstack((np.eye(n_x), np.zeros((n_u, n_x))))
+            self.__Gamma_u = np.vstack((np.zeros((n_x, n_u)), np.eye(n_u)))
+            self.__Gamma_N = np.eye(n_x)
+
+            N = self.__C_t.num_sets
             stage_rect_min = self.__C_t.rect_min
             stage_rect_max = self.__C_t.rect_max
             terminal_rect_min = self.__C_N.rect_min
             terminal_rect_max = self.__C_N.rect_max
+            n_z = N * (n_x + n_u) + n_x
+
+            # make scaling factor
+            x_scaling_factor = np.zeros(n_x)
+            u_scaling_factor = np.zeros(n_u)
+
             if isinstance(stage_rect_min[0], list) and isinstance(stage_rect_max[0], list):
-                # scaling Gamma_x and Gamma_u matrix
-                x_part_scaling = np.eye(n_x)
                 for i in range(n_x):
-                    x_scaling_factor = stage_rect_max[0][i] - stage_rect_min[0][i]
-                    x_part_scaling[i, :] = x_part_scaling[i, :] / x_scaling_factor * 10
-                u_part_scaling = np.eye(n_u)
+                    x_scaling_factor[i] = stage_rect_max[0][i] - stage_rect_min[0][i]
                 for i in range(n_u):
-                    u_scaling_factor = stage_rect_max[0][i + n_x] - stage_rect_min[0][i + n_x]
-                    u_part_scaling[i, :] = u_part_scaling[i, :] / u_scaling_factor * 10
-                N_part_scaling = np.eye(n_x)
+                    u_scaling_factor[i] = stage_rect_max[0][i + n_x] - stage_rect_min[0][i + n_x]
+            elif (isinstance(stage_rect_min[0], list) is False) and isinstance(stage_rect_max[0], list):
                 for i in range(n_x):
-                    N_scaling_factor = terminal_rect_max[i] - terminal_rect_min[i]
-                    N_part_scaling[i, :] = N_part_scaling[i, :] / N_scaling_factor * 10
-                self.__Gamma_x = np.vstack((x_part_scaling, np.zeros((n_u, n_x))))
-                self.__Gamma_u = np.vstack((np.zeros((n_x, n_u)), u_part_scaling))
-
-                # reconstruct stage_sets
-                rectangle = core_sets.Rectangle([-5] * (n_x + n_u), [5] * (n_x + n_u))
-                stage_sets_list = [rectangle] * num_sets
-                self.__C_t = core_sets.Cartesian(stage_sets_list)
+                    x_scaling_factor[i] = stage_rect_max[0][i] - stage_rect_min[0]
+                for i in range(n_u):
+                    u_scaling_factor[i] = stage_rect_max[0][i + n_x] - stage_rect_min[0]
+            elif isinstance(stage_rect_min[0], list) and (isinstance(stage_rect_max[0], list) is False):
+                for i in range(n_x):
+                    x_scaling_factor[i] = stage_rect_max[0] - stage_rect_min[0][i]
+                for i in range(n_u):
+                    u_scaling_factor[i] = stage_rect_max[0] - stage_rect_min[0][i + n_x]
             else:
-                self.__Gamma_x = np.vstack((np.eye(n_x), np.zeros((n_u, n_x))))
-                self.__Gamma_u = np.vstack((np.zeros((n_x, n_u)), np.eye(n_u)))
+                for i in range(n_x):
+                    x_scaling_factor[i] = stage_rect_max[0] - stage_rect_min[0]
+                for i in range(n_u):
+                    u_scaling_factor[i] = stage_rect_max[0] - stage_rect_min[0]
 
+            N_scaling_factor = np.zeros(n_x)
             if isinstance(terminal_rect_min, list) and isinstance(terminal_rect_max, list):
-                # scaling Gamma_N matrix
-                N_part_scaling = np.eye(n_x)
                 for i in range(n_x):
-                    N_scaling_factor = terminal_rect_max[i] - terminal_rect_min[i]
-                    N_part_scaling[i, :] = N_part_scaling[i, :] / N_scaling_factor * 10
-                self.__Gamma_N = N_part_scaling
-
-                # reconstruct terminal set
-                self.__C_N = core_sets.Rectangle([-5] * (n_x + n_u), [5] * (n_x + n_u))
+                    N_scaling_factor[i] = terminal_rect_max[i] - terminal_rect_min[i]
+            elif (isinstance(terminal_rect_min, list) is False) and isinstance(terminal_rect_max, list):
+                for i in range(n_x):
+                    N_scaling_factor[i] = terminal_rect_max[i] - terminal_rect_min
+            elif isinstance(terminal_rect_min, list) and (isinstance(terminal_rect_max, list) is False):
+                for i in range(n_x):
+                    N_scaling_factor[i] = terminal_rect_max - terminal_rect_min[i]
             else:
-                self.__Gamma_N = np.eye(n_x)
+                for i in range(n_x):
+                    N_scaling_factor[i] = terminal_rect_max - terminal_rect_min
+            scaling_factor = np.zeros(n_z)
+            for i in range(N):
+                x_index = i * (n_x + n_u)
+                u_index = i * (n_x + n_u) + n_x
+                scaling_factor[x_index: x_index + n_x] = x_scaling_factor[:]
+                scaling_factor[u_index: u_index + n_u] = u_scaling_factor[:]
+            N_index = N * (n_x + n_u)
+            scaling_factor[N_index: N_index + n_x] = N_scaling_factor[:]
+            self.__scaling_factor = np.reshape(scaling_factor, (n_z, 1))
+
+            # reconstruct stage_sets
+            rectangle = core_sets.Rectangle(-0.5, 0.5)
+            stage_sets_list = [rectangle] * N
+            self.__C_t = core_sets.Cartesian(stage_sets_list)
+            # reconstruct terminal set
+            self.__C_N = core_sets.Rectangle(-0.5, 0.5)
         else:
             raise ValueError("Constraints type is not support ('No constraints' or 'Real or 'Rectangle')!")
+
+    @property
+    def scaling_factor(self):
+        return self.__scaling_factor
 
     @property
     def Gamma_x(self):
