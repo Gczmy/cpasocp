@@ -14,9 +14,9 @@ Chambolle-Pock Algorithm Solving Optimal Control Problems
 - [ ] Extensions
     - [x] Comparison with ADMM and cvxpy
     - [x] Dolan-More profile diagram by perprof-py
-    - [ ] Preconditioning
     - [x] Scaling
-    - [ ] Termination criteria
+    - [x] Termination criteria
+    - [ ] Preconditioning
 
 ## Results
 ![comparison all](./results/comparison%20all/comparison_semilog.pdf)
