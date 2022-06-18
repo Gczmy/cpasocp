@@ -7,7 +7,7 @@ import cpasocp.core.sets as core_sets
 # -----------------------------------------------------------------------------------------------------
 
 # dynamics
-prediction_horizon = np.random.randint(8, 10)
+prediction_horizon = np.random.randint(15, 20)
 
 n_x = np.random.randint(10, 20)  # state dimension
 n_u = np.random.randint(9, n_x)  # input dimension

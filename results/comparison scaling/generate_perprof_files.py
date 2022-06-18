@@ -3,11 +3,11 @@ import cpasocp as cpa
 import numpy as np
 import cpasocp.core.sets as core_sets
 
-f = open("Chambolle-Pock.txt", "w")
-print("---\nalgname: Chambolle-Pock\nsuccess: converged\nfree_format: True\n---", file=f)
-f.close()
 f = open("CP_scaling.txt", "w")
 print("---\nalgname: CP scaling\nsuccess: converged\nfree_format: True\n---", file=f)
+f.close()
+f = open("ADMM_scaling.txt", "w")
+print("---\nalgname: ADMM scaling\nsuccess: converged\nfree_format: True\n---", file=f)
 f.close()
 
 for problem_loop in range(100):
@@ -16,8 +16,8 @@ for problem_loop in range(100):
 
     n_x = np.random.randint(10, 20)  # state dimension
     n_u = np.random.randint(9, n_x)  # input dimension
-    # n_x = 4  # state dimension
-    # n_u = 3  # input dimension
+    # n_x = 10  # state dimension
+    # n_u = 10  # input dimension
 
     # A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
     A = 2 * np.random.rand(n_x, n_x)  # n x n matrices
@@ -32,8 +32,8 @@ for problem_loop in range(100):
 
     # constraints
     constraints_type = 'Rectangle'
-    rect_min = [0] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
-    rect_max = [0] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
+    rect_min = [-3] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
+    rect_max = [3] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
     for i in range(n_x + n_u):
         rect_min[i] = np.random.rand()
         rect_max[i] = np.random.rand()
@@ -73,30 +73,6 @@ for problem_loop in range(100):
     # algorithm parameters
     epsilon_CP = 1e-3
 
-    # Chambolle-Pock method
-    # ------------------------------------------------------------------------------------------------------------------
-    # start time for chambolle-pock method
-    start_CP = time.time()
-
-    solution = cpa.core.CPASOCP(prediction_horizon) \
-        .with_dynamics(A, B) \
-        .with_cost(cost_type, Q, R, P) \
-        .with_constraints(constraints_type, stage_sets, terminal_set) \
-        .chambolle_pock_algorithm(epsilon_CP, x0, z0, eta0)
-
-    CP_time = time.time() - start_CP
-
-    z_CP = solution.get_z_value
-
-    if solution.get_status == 0:
-        f = open("Chambolle-Pock.txt", "a")
-        print(f"problem{problem_loop} converged {CP_time}", file=f)
-        f.close()
-    else:
-        f = open("Chambolle-Pock.txt", "a")
-        print(f"problem{problem_loop} failed {CP_time}", file=f)
-        f.close()
-
     # CP_scaling
     # ------------------------------------------------------------------------------------------------------------------
     start_CP_scaling = time.time()
@@ -117,6 +93,30 @@ for problem_loop in range(100):
     else:
         f = open("CP_scaling.txt", "a")
         print(f"problem{problem_loop} failed {CP_scaling_time}", file=f)
+        f.close()
+
+    epsilon_ADMM = 1e-3
+    # ADMM scaling
+    # ------------------------------------------------------------------------------------------------------------------
+    start_ADMM_scaling = time.time()
+
+    solution_ADMM_scaling = cpa.core.CPASOCP(prediction_horizon) \
+        .with_dynamics(A, B) \
+        .with_cost(cost_type, Q, R, P) \
+        .with_constraints_scaling(constraints_type, stage_sets, terminal_set) \
+        .ADMM_scaling(epsilon_ADMM, x0, z0, eta0)
+
+    ADMM_scaling_time = time.time() - start_ADMM_scaling
+
+    z_ADMM_scaling = solution_ADMM_scaling.get_z_value
+
+    if solution_ADMM_scaling.get_status == 0:
+        f = open("ADMM_scaling.txt", "a")
+        print(f"problem{problem_loop} converged {ADMM_scaling_time}", file=f)
+        f.close()
+    else:
+        f = open("ADMM_scaling.txt", "a")
+        print(f"problem{problem_loop} failed {ADMM_scaling_time}", file=f)
         f.close()
 
     print('problem_loop:', problem_loop)

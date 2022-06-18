@@ -134,13 +134,12 @@ class TestScaling(unittest.TestCase):
         tol = 1e-3
         # CP scaling
         # ------------------------------------------------------------------------------------------------------------------
-        epsilon = 1e-3
         start_scaling = time.time()
         solution_scaling = cpa.core.CPASOCP(TestScaling.prediction_horizon) \
             .with_dynamics(TestScaling.A, TestScaling.B) \
             .with_cost(TestScaling.cost_type, TestScaling.Q, TestScaling.R, TestScaling.P) \
             .with_constraints_scaling(TestScaling.constraints_type, TestScaling.stage_sets, TestScaling.terminal_set) \
-            .CP_scaling(epsilon, TestScaling.initial_state, TestScaling.z0, TestScaling.eta0)
+            .CP_scaling(TestScaling.epsilon, TestScaling.initial_state, TestScaling.z0, TestScaling.eta0)
         scaling_time = time.time() - start_scaling
         z_scaling = solution_scaling.get_z_value
 
@@ -152,13 +151,12 @@ class TestScaling(unittest.TestCase):
         tol = 1e-3
         # ADMM scaling
         # ------------------------------------------------------------------------------------------------------------------
-        epsilon = 1e-6
         start_ADMM_scaling = time.time()
         solution_ADMM_scaling = cpa.core.CPASOCP(TestScaling.prediction_horizon) \
             .with_dynamics(TestScaling.A, TestScaling.B) \
             .with_cost(TestScaling.cost_type, TestScaling.Q, TestScaling.R, TestScaling.P) \
             .with_constraints_scaling(TestScaling.constraints_type, TestScaling.stage_sets, TestScaling.terminal_set) \
-            .ADMM_scaling(epsilon, TestScaling.initial_state, TestScaling.z0, TestScaling.eta0)
+            .ADMM_scaling(TestScaling.epsilon, TestScaling.initial_state, TestScaling.z0, TestScaling.eta0)
         ADMM_scaling_time = time.time() - start_ADMM_scaling
         z_ADMM_scaling = solution_ADMM_scaling.get_z_value
 

@@ -3,13 +3,13 @@ import numpy as np
 import cvxpy as cp
 import cpasocp as cpa
 import cpasocp.core.sets as core_sets
-import time
 
 
-class TestADMM(unittest.TestCase):
-    prediction_horizon = 10
-    n_x = 4
-    n_u = 3
+class TestResults(unittest.TestCase):
+    prediction_horizon = np.random.randint(15, 20)
+
+    n_x = np.random.randint(10, 20)  # state dimension
+    n_u = np.random.randint(9, n_x)  # input dimension
 
     # A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
     A = 2 * np.random.rand(n_x, n_x)  # n x n matrices
@@ -25,33 +25,43 @@ class TestADMM(unittest.TestCase):
     rect_min = [-1] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
     rect_max = [1] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
     for i in range(n_x + n_u):
-        rect_min[i] = np.random.random()
-        rect_max[i] = np.random.random()
+        rect_min[i] = np.random.rand()
+        rect_max[i] = np.random.rand()
         if (i % 2) == 0:
-            rect_min[i] = rect_min[i] * -10000 - 10000
-            rect_max[i] = rect_max[i] * 10000 + 10000
+            rect_min[i] = rect_min[i] * -100000 - 100000
+            rect_max[i] = rect_max[i] * 100000 + 100000
         else:
-            rect_min[i] = rect_min[i] * -10 - 2
-            rect_max[i] = rect_max[i] * 10 + 2
+            rect_min[i] = rect_min[i] * -1000 - 1000
+            rect_max[i] = rect_max[i] * 1000 + 1000
     rectangle = core_sets.Rectangle(rect_min=rect_min, rect_max=rect_max)
     stage_sets_list = [rectangle] * prediction_horizon
     stage_sets = core_sets.Cartesian(stage_sets_list)
     terminal_set = core_sets.Rectangle(rect_min=rect_min, rect_max=rect_max)
 
     # algorithm parameters
-    epsilon = 1e-7
+    epsilon = 1e-3
     # initial_state = np.array([0.2, 0.5])
     initial_state = 0.5 * np.random.rand(n_x) + 0.1
     for i in range(n_x):
-        initial_state[i] = np.random.random()
+        initial_state[i] = np.random.rand() - 0.5
         if (i % 2) == 0:
-            initial_state[i] = initial_state[i] * 5 + 5
+            initial_state[i] *= 1000
         else:
-            initial_state[i] = initial_state[i]
+            initial_state[i] *= 100
 
     n_z = (prediction_horizon + 1) * A.shape[1] + prediction_horizon * B.shape[1]
     z0 = 0.5 * np.random.rand(n_z, 1) + 0.1
     eta0 = 0.5 * np.random.rand(n_z, 1) + 0.1
+    for j in range(prediction_horizon):
+        for i in range(n_x + n_u):
+            z0[j * (n_x + n_u) + i] = np.random.random()
+            eta0[j * (n_x + n_u) + i] = np.random.random()
+            if ((j * (n_x + n_u) + i) % 2) == 0:
+                z0[j * (n_x + n_u) + i] *= 1000
+                eta0[j * (n_x + n_u) + i] *= 1000
+            else:
+                z0[j * (n_x + n_u) + i] *= 100
+                eta0[j * (n_x + n_u) + i] *= 100
 
     # solving OCP by cvxpy
     # -----------------------------
@@ -114,22 +124,47 @@ class TestADMM(unittest.TestCase):
     def setUpClass(cls) -> None:
         super().setUpClass()
 
-    def test_ADMM(self):
+    def test_chambolle_pock_results(self):
+        tol = 1e-3
+        # Chambolle-Pock method
+        # --------------------------------------------------------------------------------------------------------------
+        solution = cpa.core.CPASOCP(TestResults.prediction_horizon) \
+            .with_dynamics(TestResults.A, TestResults.B) \
+            .with_cost(TestResults.cost_type, TestResults.Q, TestResults.R, TestResults.P) \
+            .with_constraints(TestResults.constraints_type, TestResults.stage_sets, TestResults.terminal_set) \
+            .chambolle_pock_algorithm(TestResults.epsilon, TestResults.initial_state, TestResults.z0, TestResults.eta0)
+
+        z_chambolle_pock = solution.get_z_value
+        error_CP = np.linalg.norm(z_chambolle_pock - TestResults.z_cvxpy, np.inf)
+        print('error_CP:', error_CP)
+        self.assertAlmostEqual(error_CP, 0, delta=tol)
+
+    def test_ADMM_results(self):
         tol = 1e-3
         # ADMM
         # --------------------------------------------------------------------------------------------------------------
-        start_ADMM = time.time()
-        solution_ADMM = cpa.core.CPASOCP(TestADMM.prediction_horizon) \
-            .with_dynamics(TestADMM.A, TestADMM.B) \
-            .with_cost(TestADMM.cost_type, TestADMM.Q, TestADMM.R, TestADMM.P) \
-            .with_constraints(TestADMM.constraints_type, TestADMM.stage_sets, TestADMM.terminal_set) \
-            .ADMM(TestADMM.epsilon, TestADMM.initial_state, TestADMM.z0, TestADMM.eta0)
-        ADMM_time = time.time() - start_ADMM
+        solution_ADMM = cpa.core.CPASOCP(TestResults.prediction_horizon) \
+            .with_dynamics(TestResults.A, TestResults.B) \
+            .with_cost(TestResults.cost_type, TestResults.Q, TestResults.R, TestResults.P) \
+            .with_constraints(TestResults.constraints_type, TestResults.stage_sets, TestResults.terminal_set) \
+            .ADMM(TestResults.epsilon, TestResults.initial_state, TestResults.z0, TestResults.eta0)
         z_ADMM = solution_ADMM.get_z_value
 
-        error_ADMM = np.linalg.norm(z_ADMM - TestADMM.z_cvxpy, np.inf)
+        N = TestResults.prediction_horizon
+        n_x = TestResults.A.shape[1]
+        n_u = TestResults.B.shape[1]
+        error_ADMM = np.linalg.norm(z_ADMM - TestResults.z_cvxpy, np.inf)
+        print('error_ADMM:', error_ADMM)
         self.assertAlmostEqual(error_ADMM, 0, delta=tol)
-
+        gradient_f = 0
+        for i in range(N):
+            x_t = z_ADMM[i * (n_x + n_u): i * (n_x + n_u) + n_x]
+            u_t = z_ADMM[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
+            gradient_f += TestResults.Q @ x_t
+        x_N = z_ADMM[N * (n_x + n_u): N * (n_x + n_u) + n_x]
+        gradient_f += TestResults.P @ x_N
+        # print(gradient_f)
+        # distance = np.inner(-gradient_f, )
 
 if __name__ == '__main__':
     unittest.main()

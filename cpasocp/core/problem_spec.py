@@ -4,7 +4,6 @@ import cpasocp.core.costs as core_costs
 import cpasocp.core.constraints as core_constraints
 import cpasocp.core.proximal_offline_part as core_offline
 import cpasocp.core.chambolle_pock_algorithm as core_cpa
-import cpasocp.core.precondition as core_pre
 import cpasocp.core.ADMM as core_admm
 import cpasocp.core.constraints_scaling as core_con_sca
 
@@ -153,41 +152,6 @@ class CPASOCP:
             self.__scaling_factor, epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
             initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
             self.__Gamma_N, self.__C_t, self.__C_N)
-        return self
-
-    # Chambolle-Pock algorithm precondition for Optimal Control Problems -----------------------------------------------
-
-    def CP_precondition(self, epsilon, initial_state, initial_guess_z, initial_guess_eta, scaling_factor):
-        n_z = initial_guess_z.shape[0]
-
-        L, L_z, L_adj, self.__alpha = core_cpa.make_alpha(
-            self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u, self.__Gamma_N,
-            initial_guess_z)
-
-        T_pre, Sigma_pre = core_pre.precondition(L @ np.identity(n_z), scaling_factor)
-
-        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
-            self.__prediction_horizon,
-            self.__alpha, self.__A, self.__B,
-            self.__Q, self.__R,
-            self.__P).algorithm()
-        self.__residuals_cache, self.__z, self.__status = core_ext.CP_precondition(
-            epsilon,
-            initial_guess_z,
-            initial_guess_eta,
-            T_pre, Sigma_pre, L, L_z, L_adj,
-            self.__prediction_horizon,
-            initial_state,
-            self.__A, self.__B,
-            self.__R,
-            P_seq,
-            R_tilde_seq,
-            K_seq,
-            A_bar_seq,
-            self.__Gamma_x,
-            self.__Gamma_N,
-            self.__C_t,
-            self.__C_N)
         return self
 
     # ADMM for Optimal Control Problems --------------------------------------------------------------------------------

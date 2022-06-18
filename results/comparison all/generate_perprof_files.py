@@ -22,7 +22,7 @@ f.close()
 
 for problem_loop in range(100):
     # dynamics
-    prediction_horizon = np.random.randint(8, 10)
+    prediction_horizon = np.random.randint(15, 20)
 
     n_x = np.random.randint(10, 20)  # state dimension
     n_u = np.random.randint(9, n_x)  # input dimension
@@ -195,7 +195,7 @@ for problem_loop in range(100):
 
     # ADMM method
     # ------------------------------------------------------------------------------------------------------------------
-    epsilon_ADMM = 1e-6
+    epsilon_ADMM = 1e-3
     start_ADMM = time.time()
 
     solution_ADMM = cpa.core.CPASOCP(prediction_horizon) \

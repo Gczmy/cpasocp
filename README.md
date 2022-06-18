@@ -17,3 +17,9 @@ Chambolle-Pock Algorithm Solving Optimal Control Problems
     - [ ] Preconditioning
     - [x] Scaling
     - [ ] Termination criteria
+
+## Results
+![comparison all](./results/comparison%20all/comparison_semilog.pdf)
+![comparison CP ADMM](./results/comparison%20CP%20ADMM/comparison_semilog.pdf)
+![comparison CP ADMM scaling](./results/comparison%20CP%20scaling/comparison_semilog.pdf)
+![comparison scaling](./results/comparison%20scaling/comparison_semilog.pdf)
