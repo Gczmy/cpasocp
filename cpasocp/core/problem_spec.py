@@ -6,6 +6,7 @@ import cpasocp.core.proximal_offline_part as core_offline
 import cpasocp.core.chambolle_pock_algorithm as core_cpa
 import cpasocp.core.ADMM as core_admm
 import cpasocp.core.constraints_scaling as core_con_sca
+import cpasocp.core.l_bfgs as core_l_bfgs
 
 
 class CPASOCP:
@@ -185,6 +186,14 @@ class CPASOCP:
             self.__scaling_factor, epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj,
             self.__prediction_horizon, initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq,
             A_bar_seq, self.__Gamma_x, self.__Gamma_N, self.__C_t, self.__C_N)
+
+        return self
+
+    # L-BFGS -----------------------------------------------------------------------------------------------------------
+
+    def L_BFGS(self, initial_state, memory_num):
+        self.__z = core_l_bfgs.L_BFGS(self.__prediction_horizon, initial_state, memory_num, self.__A, self.__Q,
+                                      self.__R, self.__P)
 
         return self
 
