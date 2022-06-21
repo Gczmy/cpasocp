@@ -6,16 +6,18 @@ class QuadraticStage:
     A quadratic cost item for any stage
     """
 
-    def __init__(self, stage_state_weight, control_weight):
+    def __init__(self, stage_state_weight, control_weight, stage_state_weight2):
         """
         :param stage_state_weight: stage state cost matrix (Q)
         :param control_weight: input cost matrix or scalar (R)
+        :param stage_state_weight2: stage cost vector (q)
         """
         if stage_state_weight.shape[0] != stage_state_weight.shape[1]:
             raise ValueError("quadratic cost state weight matrix is not square")
         else:
             self.__stage_state_weight = stage_state_weight
         self.__control_weight = control_weight
+        self.__stage_state_weight2 = stage_state_weight2
         self.__most_recent_cost_value = None
 
     def get_cost_value(self, state, control):
@@ -42,6 +44,10 @@ class QuadraticStage:
     @property
     def control_weights(self):
         return self.__control_weight
+
+    @property
+    def stage_state_weights2(self):
+        return self.__stage_state_weight2
 
     @property
     def most_recent_cost_value(self):

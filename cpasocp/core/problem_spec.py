@@ -1,4 +1,3 @@
-import numpy as np
 import cpasocp.core.dynamics as core_dynamics
 import cpasocp.core.costs as core_costs
 import cpasocp.core.constraints as core_constraints
@@ -23,6 +22,7 @@ class CPASOCP:
         self.__B = None
         self.__dynamics = None
         self.__Q = None
+        self.__q = None
         self.__R = None
         self.__P = None
         self.__list_of_stage_cost = [None] * self.__prediction_horizon
@@ -38,6 +38,8 @@ class CPASOCP:
         self.__alpha = None
         self.__status = None
         self.__scaling_factor = None
+        self.__L_BFGS_k = None
+        self.__L_BFGS_grad_cache = None
 
     # GETTERS
     @property
@@ -72,6 +74,14 @@ class CPASOCP:
     def get_scaling_factor(self):
         return self.__scaling_factor
 
+    @property
+    def get_L_BFGS_k(self):
+        return self.__L_BFGS_k
+
+    @property
+    def get_L_BFGS_grad_cache(self):
+        return self.__L_BFGS_grad_cache
+
     # Dynamics ---------------------------------------------------------------------------------------------------------
 
     def with_dynamics(self, state_dynamics, control_dynamics):
@@ -82,14 +92,19 @@ class CPASOCP:
 
     # Costs ------------------------------------------------------------------------------------------------------------
 
-    def with_cost(self, cost_type, stage_state_weight, control_weight, terminal_state_weight):
+    def with_cost(self, cost_type, stage_state_weight, control_weight=None, terminal_state_weight=None,
+                  stage_state_weight2=None):
         if cost_type == "Quadratic":
-            for i in range(self.__prediction_horizon):
-                self.__list_of_stage_cost[i] = core_costs.QuadraticStage(stage_state_weight, control_weight)
+            if control_weight is not None:
+                for i in range(self.__prediction_horizon):
+                    self.__list_of_stage_cost[i] = core_costs.QuadraticStage(stage_state_weight, control_weight,
+                                                                             stage_state_weight2)
             self.__Q = stage_state_weight
+            self.__q = stage_state_weight2
             self.__R = control_weight
             self.__P = terminal_state_weight
-            self.__terminal_cost = core_costs.QuadraticTerminal(terminal_state_weight)
+            if terminal_state_weight is not None:
+                self.__terminal_cost = core_costs.QuadraticTerminal(terminal_state_weight)
             return self
         else:
             raise ValueError("cost type '%s' not supported" % cost_type)
@@ -150,7 +165,8 @@ class CPASOCP:
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
         self.__residuals_cache, self.__z, self.__status = core_cpa.CP_scaling_for_ocp(
-            self.__scaling_factor, epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
+            self.__scaling_factor, epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj,
+            self.__prediction_horizon,
             initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
             self.__Gamma_N, self.__C_t, self.__C_N)
         return self
@@ -191,10 +207,8 @@ class CPASOCP:
 
     # L-BFGS -----------------------------------------------------------------------------------------------------------
 
-    def L_BFGS(self, initial_state, memory_num):
-        self.__z = core_l_bfgs.L_BFGS(self.__prediction_horizon, initial_state, memory_num, self.__A, self.__Q,
-                                      self.__R, self.__P)
-
+    def L_BFGS(self, epsilon, initial_state, memory_num):
+        self.__z, self.__L_BFGS_k, self.__L_BFGS_grad_cache = core_l_bfgs.LBFGS(epsilon, initial_state, memory_num, self.__A, self.__Q, self.__q).l_bfgs_algorithm()
         return self
 
     # Class ------------------------------------------------------------------------------------------------------------

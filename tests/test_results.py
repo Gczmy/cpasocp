@@ -166,5 +166,6 @@ class TestResults(unittest.TestCase):
         # print(gradient_f)
         # distance = np.inner(-gradient_f, )
 
+
 if __name__ == '__main__':
     unittest.main()
