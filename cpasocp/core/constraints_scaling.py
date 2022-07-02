@@ -27,6 +27,15 @@ class Constraints:
 
     def make_gamma_matrix_scaling(self):
         """generate Gamma matrix depends on constraints type and scaling"""
+        if self.__constraints_type is None:
+            self.__constraints_type = 'No constraints'
+            self.__C_t = core_sets.Real()
+            self.__C_N = core_sets.Real()
+        if self.__C_t is None:
+            self.__C_t = core_sets.Real()
+        if self.__C_N is None:
+            self.__C_N = core_sets.Real()
+
         n_x = self.__A.shape[1]
         n_u = self.__B.shape[1]
         if self.__constraints_type == 'No constraints' or self.__constraints_type == 'Real':

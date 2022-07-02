@@ -72,12 +72,13 @@ solution = cpa.core.CPASOCP(prediction_horizon) \
     .chambolle_pock_algorithm(epsilon, x0, z0, eta0)
 
 print(solution)
-# print(solution.get_z_value)
+print(solution.get_residual_z.shape[2])
 plt.title('semilogy')
 plt.xlabel('Iterations')
 plt.ylabel('Residuals')
 plt.semilogy(solution.get_residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
 plt.legend()
 plt.show()
+
 
 

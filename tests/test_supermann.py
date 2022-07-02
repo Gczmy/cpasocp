@@ -3,13 +3,16 @@ import numpy as np
 import cvxpy as cp
 import cpasocp as cpa
 import cpasocp.core.sets as core_sets
+import time
 
 
-class TestResults(unittest.TestCase):
+class TestSuperMann(unittest.TestCase):
     prediction_horizon = np.random.randint(15, 20)
-
+    # prediction_horizon = 1
     n_x = np.random.randint(10, 20)  # state dimension
     n_u = np.random.randint(9, n_x)  # input dimension
+    # n_x = 2
+    # n_u = 2
 
     # A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
     A = 2 * np.random.rand(n_x, n_x)  # n x n matrices
@@ -124,47 +127,33 @@ class TestResults(unittest.TestCase):
     def setUpClass(cls) -> None:
         super().setUpClass()
 
-    def test_chambolle_pock_results(self):
+    def test_supermann(self):
         tol = 1e-3
+        # Chambolle-Pock method with SuperMann
+        # --------------------------------------------------------------------------------------------------------------
+        start_CP_SuperMann = time.time()
+        solution_CP_SuperMann = cpa.core.CPASOCP(TestSuperMann.prediction_horizon) \
+            .with_dynamics(TestSuperMann.A, TestSuperMann.B) \
+            .with_cost(TestSuperMann.cost_type, TestSuperMann.Q, TestSuperMann.R, TestSuperMann.P) \
+            .with_constraints(TestSuperMann.constraints_type, TestSuperMann.stage_sets, TestSuperMann.terminal_set) \
+            .CP_SuperMann(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0)
+        CP_SuperMann_time = time.time() - start_CP_SuperMann
+        z_CP_SuperMann = solution_CP_SuperMann.get_z_value
+        error_CP_SuperMann = np.linalg.norm(z_CP_SuperMann - TestSuperMann.z_cvxpy, np.inf)
+        print('error_CP_SuperMann:', error_CP_SuperMann)
+        # self.assertAlmostEqual(error_CP_SuperMann, 0, delta=tol)
+        print('CP_SuperMann_time:', CP_SuperMann_time)
+
         # Chambolle-Pock method
         # --------------------------------------------------------------------------------------------------------------
-        solution = cpa.core.CPASOCP(TestResults.prediction_horizon) \
-            .with_dynamics(TestResults.A, TestResults.B) \
-            .with_cost(TestResults.cost_type, TestResults.Q, TestResults.R, TestResults.P) \
-            .with_constraints(TestResults.constraints_type, TestResults.stage_sets, TestResults.terminal_set) \
-            .chambolle_pock_algorithm(TestResults.epsilon, TestResults.initial_state, TestResults.z0, TestResults.eta0)
-
-        z_chambolle_pock = solution.get_z_value
-        error_CP = np.linalg.norm(z_chambolle_pock - TestResults.z_cvxpy, np.inf)
-        print('error_CP:', error_CP)
-        self.assertAlmostEqual(error_CP, 0, delta=tol)
-
-    def test_ADMM_results(self):
-        tol = 1e-3
-        # ADMM
-        # --------------------------------------------------------------------------------------------------------------
-        solution_ADMM = cpa.core.CPASOCP(TestResults.prediction_horizon) \
-            .with_dynamics(TestResults.A, TestResults.B) \
-            .with_cost(TestResults.cost_type, TestResults.Q, TestResults.R, TestResults.P) \
-            .with_constraints(TestResults.constraints_type, TestResults.stage_sets, TestResults.terminal_set) \
-            .ADMM(TestResults.epsilon, TestResults.initial_state, TestResults.z0, TestResults.eta0)
-        z_ADMM = solution_ADMM.get_z_value
-
-        N = TestResults.prediction_horizon
-        n_x = TestResults.A.shape[1]
-        n_u = TestResults.B.shape[1]
-        error_ADMM = np.linalg.norm(z_ADMM - TestResults.z_cvxpy, np.inf)
-        print('error_ADMM:', error_ADMM)
-        self.assertAlmostEqual(error_ADMM, 0, delta=tol)
-        gradient_f = 0
-        for i in range(N):
-            x_t = z_ADMM[i * (n_x + n_u): i * (n_x + n_u) + n_x]
-            u_t = z_ADMM[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
-            gradient_f += TestResults.Q @ x_t
-        x_N = z_ADMM[N * (n_x + n_u): N * (n_x + n_u) + n_x]
-        gradient_f += TestResults.P @ x_N
-        # print(gradient_f)
-        # distance = np.inner(-gradient_f, )
+        start_CP = time.time()
+        solution_CP = cpa.core.CPASOCP(TestSuperMann.prediction_horizon) \
+            .with_dynamics(TestSuperMann.A, TestSuperMann.B) \
+            .with_cost(TestSuperMann.cost_type, TestSuperMann.Q, TestSuperMann.R, TestSuperMann.P) \
+            .with_constraints(TestSuperMann.constraints_type, TestSuperMann.stage_sets, TestSuperMann.terminal_set) \
+            .chambolle_pock_algorithm(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0)
+        CP_time = time.time() - start_CP
+        print('CP_time:', CP_time)
 
 
 if __name__ == '__main__':

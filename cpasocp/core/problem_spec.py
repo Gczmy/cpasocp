@@ -6,6 +6,8 @@ import cpasocp.core.chambolle_pock_algorithm as core_cpa
 import cpasocp.core.ADMM as core_admm
 import cpasocp.core.constraints_scaling as core_con_sca
 import cpasocp.core.l_bfgs as core_l_bfgs
+import cpasocp.core.sets as core_sets
+import cpasocp.core.supermann as core_supermann
 
 
 class CPASOCP:
@@ -32,11 +34,13 @@ class CPASOCP:
         self.__Gamma_N = None
         self.__C_t = None
         self.__C_N = None
-        self.__constraints = None
+        self.__constraints = core_constraints.Constraints(None, None, None, None, None)
         self.__residuals_cache = None
         self.__z = None
         self.__alpha = None
         self.__status = None
+        self.__residual_z = None
+        self.__residual_eta = None
         self.__scaling_factor = None
         self.__L_BFGS_k = None
         self.__L_BFGS_grad_cache = None
@@ -67,6 +71,14 @@ class CPASOCP:
         return self.__status
 
     @property
+    def get_residual_z(self):
+        return self.__residual_z
+
+    @property
+    def get_residual_eta(self):
+        return self.__residual_eta
+
+    @property
     def get_residuals_cache(self):
         return self.__residuals_cache
 
@@ -95,25 +107,32 @@ class CPASOCP:
     def with_cost(self, cost_type, stage_state_weight, control_weight=None, terminal_state_weight=None,
                   stage_state_weight2=None):
         if cost_type == "Quadratic":
-            if control_weight is not None:
-                for i in range(self.__prediction_horizon):
-                    self.__list_of_stage_cost[i] = core_costs.QuadraticStage(stage_state_weight, control_weight,
-                                                                             stage_state_weight2)
+            for i in range(self.__prediction_horizon):
+                self.__list_of_stage_cost[i] = core_costs.QuadraticStage(stage_state_weight, control_weight,
+                                                                         stage_state_weight2)
             self.__Q = stage_state_weight
             self.__q = stage_state_weight2
             self.__R = control_weight
             self.__P = terminal_state_weight
-            if terminal_state_weight is not None:
-                self.__terminal_cost = core_costs.QuadraticTerminal(terminal_state_weight)
+
+            self.__terminal_cost = core_costs.QuadraticTerminal(terminal_state_weight)
             return self
         else:
             raise ValueError("cost type '%s' not supported" % cost_type)
 
     # Constraints ------------------------------------------------------------------------------------------------------
 
-    def with_constraints(self, constraints_type, stage_sets, terminal_set):
+    def with_constraints(self, constraints_type=None, stage_sets=None, terminal_set=None):
         self.__C_t = stage_sets
         self.__C_N = terminal_set
+        if constraints_type is None:
+            constraints_type = 'No constraints'
+            self.__C_t = core_sets.Real()
+            self.__C_N = core_sets.Real()
+        if self.__C_t is None:
+            self.__C_t = core_sets.Real()
+        if self.__C_N is None:
+            self.__C_N = core_sets.Real()
         self.__Gamma_x, self.__Gamma_u, self.__Gamma_N = core_constraints.Constraints(
             constraints_type, self.__A, self.__B, stage_sets, terminal_set).make_gamma_matrix()
 
@@ -123,7 +142,15 @@ class CPASOCP:
 
     # Constraints scaling ----------------------------------------------------------------------------------------------
 
-    def with_constraints_scaling(self, constraints_type, stage_sets, terminal_set):
+    def with_constraints_scaling(self, constraints_type=None, stage_sets=None, terminal_set=None):
+        if constraints_type is None:
+            constraints_type = 'No constraints'
+            self.__C_t = core_sets.Real()
+            self.__C_N = core_sets.Real()
+        if self.__C_t is None:
+            self.__C_t = core_sets.Real()
+        if self.__C_N is None:
+            self.__C_N = core_sets.Real()
         self.__scaling_factor = core_con_sca.Constraints(
             constraints_type, self.__A, self.__B, stage_sets, terminal_set).scaling_factor
         self.__Gamma_x = core_con_sca.Constraints(
@@ -149,7 +176,7 @@ class CPASOCP:
 
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
-        self.__residuals_cache, self.__z, self.__status = core_cpa.CP_for_ocp(
+        self.__residuals_cache, self.__z, self.__status, self.__residual_z, self.__residual_eta = core_cpa.CP_for_ocp(
             epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
             initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
             self.__Gamma_N, self.__C_t, self.__C_N)
@@ -164,7 +191,8 @@ class CPASOCP:
 
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
-        self.__residuals_cache, self.__z, self.__status = core_cpa.CP_scaling_for_ocp(
+        self.__residuals_cache, self.__z, self.__status, self.__residual_z, self.__residual_eta = core_cpa.\
+            CP_scaling_for_ocp(
             self.__scaling_factor, epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj,
             self.__prediction_horizon,
             initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
@@ -208,7 +236,24 @@ class CPASOCP:
     # L-BFGS -----------------------------------------------------------------------------------------------------------
 
     def L_BFGS(self, epsilon, initial_state, memory_num):
-        self.__z, self.__L_BFGS_k, self.__L_BFGS_grad_cache = core_l_bfgs.LBFGS(epsilon, initial_state, memory_num, self.__A, self.__Q, self.__q).l_bfgs_algorithm()
+        self.__z, self.__L_BFGS_k, self.__L_BFGS_grad_cache = core_l_bfgs.LBFGS(
+            self.__prediction_horizon, epsilon, initial_state, memory_num, self.__A, self.__Q, self.__P, self.__q).\
+            l_bfgs_algorithm()
+        return self
+
+    # SuperMann --------------------------------------------------------------------------------------------------------
+
+    def CP_SuperMann(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
+        L, L_z, L_adj, self.__alpha = core_cpa.make_alpha(
+            self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u, self.__Gamma_N,
+            initial_guess_z)
+
+        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
+            self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
+        self.__residuals_cache, self.__z, self.__status, self.__residual_z, self.__residual_eta = core_cpa.CP_SuperMann(
+            epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
+            initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
+            self.__Gamma_N, self.__C_t, self.__C_N)
         return self
 
     # Class ------------------------------------------------------------------------------------------------------------
