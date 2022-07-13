@@ -237,7 +237,7 @@ class CPASOCP:
 
     def L_BFGS(self, epsilon, initial_state, memory_num):
         self.__z, self.__L_BFGS_k, self.__L_BFGS_grad_cache = core_l_bfgs.LBFGS(
-            self.__prediction_horizon, epsilon, initial_state, memory_num, self.__A, self.__Q, self.__P, self.__q).\
+            self.__prediction_horizon, epsilon, initial_state, memory_num, self.__A, self.__Q, self.__R, self.__P, self.__q).\
             l_bfgs_algorithm()
         return self
 
@@ -252,8 +252,8 @@ class CPASOCP:
             self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
         self.__residuals_cache, self.__z, self.__status, self.__residual_z, self.__residual_eta = core_cpa.CP_SuperMann(
             epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
-            initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
-            self.__Gamma_N, self.__C_t, self.__C_N)
+            initial_state, self.__A, self.__B, self.__Q, self.__R, self.__P, P_seq, R_tilde_seq, K_seq, A_bar_seq,
+            self.__Gamma_x, self.__Gamma_N, self.__C_t, self.__C_N)
         return self
 
     # Class ------------------------------------------------------------------------------------------------------------
