@@ -102,6 +102,7 @@ def ADMM_for_ocp(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_a
     z_next = z0
     eta_next = eta0
     u0 = 1 / rho * eta0
+    u0 = z0 - L_adj @ eta0
     u_next = u0
     n_max = 10000
 
@@ -202,7 +203,7 @@ def ADMM_scaling_for_ocp(scaling_factor, epsilon, initial_guess_z, initial_guess
         z_next = core_online.proximal_of_h_online_part(prediction_horizon=prediction_horizon,
                                                        proximal_lambda=proximal_lambda,
                                                        initial_state=x0,
-                                                       initial_guess_vector=eta_prev-u_prev,
+                                                       initial_guess_vector=L_adj @ eta_prev-u_prev,
                                                        state_dynamics=A,
                                                        control_dynamics=B,
                                                        control_weight=R,
@@ -211,14 +212,14 @@ def ADMM_scaling_for_ocp(scaling_factor, epsilon, initial_guess_z, initial_guess
                                                        K_seq=K_seq,
                                                        A_bar_seq=A_bar_seq)
         eta_next = proj_to_c(z_next + u_prev, prediction_horizon, Gamma_x, Gamma_N, stage_sets, terminal_set)
-        u_next = u_prev + z_next - eta_next
+        u_next = u_prev + z_next - L_adj @ eta_next
 
         # Termination criteria
         # scaling back
         z_prev_scaling_back = z_prev * scaling_factor
-        eta_prev_scaling_back = eta_prev * scaling_factor
+        eta_prev_scaling_back = L_adj @ eta_prev * scaling_factor
         z_next_scaling_back = z_next * scaling_factor
-        eta_next_scaling_back = eta_next * scaling_factor
+        eta_next_scaling_back = L_adj @ eta_next * scaling_factor
 
         s = rho * (eta_next_scaling_back - eta_prev_scaling_back)
         r = z_next_scaling_back - eta_next_scaling_back

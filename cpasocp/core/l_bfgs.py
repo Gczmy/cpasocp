@@ -2,14 +2,15 @@ import numpy as np
 
 
 class LBFGS:
-    def __init__(self, prediction_horizon, epsilon, initial_state, memory_num, state_dynamics, stage_state_weight, terminal_state_weight,
-                 stage_state_weight2):
+    def __init__(self, prediction_horizon, epsilon, initial_state, memory_num, state_dynamics, stage_state_weight,
+                 control_weight, terminal_state_weight, stage_state_weight2):
         self.__N = prediction_horizon
         self.__epsilon = epsilon
         self.__x0 = initial_state
         self.__m = memory_num
         self.__A = state_dynamics
         self.__Q = stage_state_weight
+        self.__R = control_weight
         self.__P = terminal_state_weight
         self.__q = stage_state_weight2
         self.__alpha = None
@@ -17,18 +18,40 @@ class LBFGS:
         self.__y_cache = [None] * memory_num
         self.__yTs_cache = [None] * memory_num
 
-    def f(self, x):
+    def f(self, v):
+        # f = 0.5 * x.T @ self.__Q @ x + self.__q.T @ x
         f = 0
+        n_x = self.__Q.shape[0]
+        n_u = self.__R.shape[0]
         for i in range(self.__N):
-            f += 0.5 * x.T @ self.__Q @ x
-        f += 0.5 * x.T @ self.__P @ x + self.__q.T @ x
+            x = v[i * (n_x + n_u): i * (n_x + n_u) + n_x]
+            u = v[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
+            f += 0.5 * (x.T @ self.__Q @ x + u.T @ self.__R @ u)
+        x = v[self.__N * (n_x + n_u): self.__N * (n_x + n_u) + n_x]
+        f += 0.5 * x.T @ self.__P @ x
         return f
 
-    def gf(self, x):
-        gf = np.zeros((x.shape[0], 1))
-        for i in range(self.__N):
-            gf += self.__Q @ x
-        gf += self.__P @ x + self.__q
+    def gf(self, v):
+        # gf = self.__Q @ x + self.__q
+        n_x = self.__Q.shape[0]
+        n_u = self.__R.shape[0]
+        n_z = self.__N * (n_x + n_u) + n_x
+        z = v[0:n_z]
+        x = z[0: n_x]
+        gf_x = self.__Q @ x
+        u = z[n_x: n_x + n_u]
+        gf_u = self.__R @ u
+        gf = np.vstack((gf_x, gf_u))
+        for i in range(1, self.__N):
+            x = z[i * (n_x + n_u): i * (n_x + n_u) + n_x]
+            gf_x = self.__Q @ x
+            gf = np.vstack((gf, gf_x))
+            u = z[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
+            gf_u = self.__R @ u
+            gf = np.vstack((gf, gf_u))
+        x = z[self.__N * (n_x + n_u): self.__N * (n_x + n_u) + n_x]
+        gf_N = self.__P @ x
+        gf = np.vstack((gf, gf_N))
         return gf
 
     def two_loop_recursion(self, gf, H_0_k, k, m, oldest_flag):
@@ -78,9 +101,9 @@ class LBFGS:
 
     def make_x_s_y(self, x_prev, p):
         alpha = LBFGS.make_alpha(self, x_prev, p)
-        gf_prev = self.__Q @ x_prev + self.__q
+        gf_prev = LBFGS.gf(self, x_prev)
         x_next = x_prev + alpha * p
-        gf_next = self.__Q @ x_next + self.__q
+        gf_next = LBFGS.gf(self, x_next)
 
         s = x_next - x_prev
         y = gf_next - gf_prev
@@ -93,11 +116,13 @@ class LBFGS:
         x0 = self.__x0
         m = self.__m
         A = self.__A
-        Q = self.__Q
+        R = self.__R
         n_x = A.shape[1]
-        x0 = np.reshape(x0, (n_x, 1))
+        n_u = R.shape[1]
+        n_z = self.__N * (n_x + n_u) + n_x
+        x0 = np.reshape(x0, (n_z, 1))
         x_prev = x0
-        gradient_prev = Q @ x0 + self.__q
+        gradient_prev = LBFGS.gf(self, x0)
         runing = True
         k = 0
         grad_cache = []
@@ -114,7 +139,7 @@ class LBFGS:
                 top = self.__s_cache[(k - 1) % m].T @ self.__y_cache[(k - 1) % m]
                 bottom = self.__y_cache[(k - 1) % m].T @ self.__y_cache[(k - 1) % m]
                 gamma_k = top / bottom
-                H_0_k = gamma_k * np.eye(n_x)
+                H_0_k = gamma_k * np.eye(n_z)
                 p = LBFGS.two_loop_recursion(self, gradient_prev, H_0_k, k, m, oldest_flag)
                 x_next, gradient_next, self.__s_cache[oldest_flag], self.__y_cache[oldest_flag], self.__yTs_cache[
                     oldest_flag] \

@@ -39,8 +39,6 @@ class CPASOCP:
         self.__z = None
         self.__alpha = None
         self.__status = None
-        self.__residual_z = None
-        self.__residual_eta = None
         self.__scaling_factor = None
         self.__L_BFGS_k = None
         self.__L_BFGS_grad_cache = None
@@ -69,14 +67,6 @@ class CPASOCP:
     @property
     def get_status(self):
         return self.__status
-
-    @property
-    def get_residual_z(self):
-        return self.__residual_z
-
-    @property
-    def get_residual_eta(self):
-        return self.__residual_eta
 
     @property
     def get_residuals_cache(self):
@@ -176,7 +166,7 @@ class CPASOCP:
 
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
-        self.__residuals_cache, self.__z, self.__status, self.__residual_z, self.__residual_eta = core_cpa.CP_for_ocp(
+        self.__residuals_cache, self.__z, self.__status = core_cpa.CP_for_ocp(
             epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
             initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
             self.__Gamma_N, self.__C_t, self.__C_N)
@@ -191,7 +181,7 @@ class CPASOCP:
 
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
-        self.__residuals_cache, self.__z, self.__status, self.__residual_z, self.__residual_eta = core_cpa.\
+        self.__residuals_cache, self.__z, self.__status = core_cpa.\
             CP_scaling_for_ocp(
             self.__scaling_factor, epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj,
             self.__prediction_horizon,
@@ -250,7 +240,7 @@ class CPASOCP:
 
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
-        self.__residuals_cache, self.__z, self.__status, self.__residual_z, self.__residual_eta = core_cpa.CP_SuperMann(
+        self.__residuals_cache, self.__z, self.__status = core_cpa.CP_SuperMann(
             epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
             initial_state, self.__A, self.__B, self.__Q, self.__R, self.__P, P_seq, R_tilde_seq, K_seq, A_bar_seq,
             self.__Gamma_x, self.__Gamma_N, self.__C_t, self.__C_N)

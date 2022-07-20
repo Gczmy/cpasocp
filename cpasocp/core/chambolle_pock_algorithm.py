@@ -104,8 +104,6 @@ def CP_for_ocp(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_adj
     eta_next = eta0
     n_max = 10000
     residuals_cache = np.zeros((n_max, 3))
-    residual_z = np.zeros((n_z, 1, n_max + 1))  # tensor
-    residual_eta = np.zeros((n_z, 1, n_max + 1))  # tensor
 
     for i in range(n_max):
         z_prev = z_next
@@ -134,8 +132,6 @@ def CP_for_ocp(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_adj
         residuals_cache[i, 0] = t_1
         residuals_cache[i, 1] = t_2
         residuals_cache[i, 2] = t_3
-        residual_z[:, :, i] = z_next - z_prev
-        residual_eta[:, :, i] = eta_next - eta_prev
 
         if t_1 <= epsilon and t_2 <= epsilon and t_3 <= epsilon:
             break
@@ -143,9 +139,7 @@ def CP_for_ocp(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_adj
     if i >= 9000:
         status = 1  # converge failed
     residuals_cache = residuals_cache[0:i, :]
-    residual_z = residual_z[:, :, 0:i]
-    residual_eta = residual_eta[:, :, 0:i]
-    return residuals_cache, z_next, status, residual_z, residual_eta
+    return residuals_cache, z_next, status
 
 
 def CP_scaling_for_ocp(scaling_factor, epsilon, initial_guess_z,
@@ -243,18 +237,13 @@ def CP_scaling_for_ocp(scaling_factor, epsilon, initial_guess_z,
         residuals_cache[i, 0] = t_1
         residuals_cache[i, 1] = t_2
         residuals_cache[i, 2] = t_3
-        residual_z[:, :, i] = z_next - z_prev
-        residual_eta[:, :, i] = eta_next - eta_prev
-
         if t_1 <= epsilon and t_2 <= epsilon and t_3 <= epsilon:
             break
     status = 0  # converge success
     if i >= 9000:
         status = 1  # converge failed
     residuals_cache = residuals_cache[0:i, :]
-    residual_z = residual_z[:, :, 0:i]
-    residual_eta = residual_eta[:, :, 0:i]
-    return residuals_cache, z_next_scaling_back, status, residual_z, residual_eta
+    return residuals_cache, z_next_scaling_back, status
 
 
 def cost_function(N, Q, R, P, v):
@@ -415,8 +404,6 @@ def CP_SuperMann(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_a
     eta_next = eta0
     n_max = 10000
     residuals_cache = np.zeros((n_max, 3))
-    residual_z = np.zeros((n_z, 1, n_max + 1))  # tensor
-    residual_eta = np.zeros((n_z, 1, n_max + 1))  # tensor
 
     # SuperMann parameter
     c0 = 0.99
@@ -428,7 +415,9 @@ def CP_SuperMann(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_a
     m = 3
     s_cache = [None] * m
     y_cache = [None] * m
-    yTs_cache = [None] * m
+
+    # op_A = np.hstack((np.eye(n_z), -alpha * L_adj))
+    # op_A = np.vstack((op_A, np.hstack((-alpha * L, np.eye(n_z)))))
 
     for i in range(n_max):
         z_prev = z_next
@@ -457,18 +446,37 @@ def CP_SuperMann(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_a
             break
 
         # Choose an update direction
+        m_i = min(m, i)
         oldest_flag = i % m
-        gradient_prev = gradient_of_cost_function(N, Q, R, P, x_k)
-        gradient_next = gradient_of_cost_function(N, Q, R, P, T_x_k)
-        s = T_x_k - x_k
-        y = gradient_next - gradient_prev
-        yTs = (y.T @ s)[0, 0]
-        s_cache[oldest_flag] = s
-        y_cache[oldest_flag] = y
-        yTs_cache[oldest_flag] = yTs
-
-        # d_k = make_direction(i, gradient_prev, N, n_z, Q, R, P, x_k, m, oldest_flag, s_cache, y_cache, yTs_cache)
-        d_k = np.random.rand(2*n_z, 1)
+        T_x_k_z_prev = T_x_k[0: n_z]
+        T_x_k_eta_prev = T_x_k[n_z: 2 * n_z]
+        T_x_k_z_next = core_online.proximal_of_h_online_part(prediction_horizon=N,
+                                                             proximal_lambda=alpha,
+                                                             initial_state=x0,
+                                                             initial_guess_vector=T_x_k_z_prev
+                                                                                  - alpha * L_adj @ T_x_k_eta_prev,
+                                                             state_dynamics=A,
+                                                             control_dynamics=B,
+                                                             control_weight=R,
+                                                             P_seq=P_seq,
+                                                             R_tilde_seq=R_tilde_seq,
+                                                             K_seq=K_seq,
+                                                             A_bar_seq=A_bar_seq)
+        T_x_k_eta_half_next = T_x_k_eta_prev + alpha * L @ (2 * T_x_k_z_next - T_x_k_z_prev)
+        T_x_k_eta_next = T_x_k_eta_half_next - alpha * proj_to_c(T_x_k_eta_half_next / alpha,
+                                                                 N, Gamma_x, Gamma_N, C_t, C_N)
+        TT_x_k = np.vstack((T_x_k_z_next, T_x_k_eta_next))
+        s_cache[oldest_flag] = x_k - T_x_k
+        y_cache[oldest_flag] = (x_k - T_x_k) - (T_x_k - TT_x_k)
+        r_k = x_k - T_x_k
+        S_k = s_cache[0]
+        Y_k = y_cache[0]
+        for k in range(1, m_i+1):
+            if k < m:
+                S_k = np.hstack((S_k, s_cache[k]))
+                Y_k = np.hstack((Y_k, y_cache[k]))
+        t_k = np.linalg.lstsq(Y_k, r_k, rcond=None)[0]
+        d_k = -r_k - (S_k - Y_k) @ t_k
 
         # K0
         if np.linalg.norm(x_k - T_x_k) <= c0 * supermann_eta:
@@ -526,16 +534,10 @@ def CP_SuperMann(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_a
         residuals_cache[i, 0] = t_1
         residuals_cache[i, 1] = t_2
         residuals_cache[i, 2] = t_3
-        residual_z[:, :, i] = z_next - z_prev
-        residual_eta[:, :, i] = eta_next - eta_prev
-
         if t_1 <= epsilon and t_2 <= epsilon and t_3 <= epsilon:
             break
-    print(i)
     status = 0  # converge success
     if i >= 9000:
         status = 1  # converge failed
     residuals_cache = residuals_cache[0:i, :]
-    residual_z = residual_z[:, :, 0:i]
-    residual_eta = residual_eta[:, :, 0:i]
-    return residuals_cache, z_next, status, residual_z, residual_eta
+    return residuals_cache, z_next, status
