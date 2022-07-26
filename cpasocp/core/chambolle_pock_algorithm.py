@@ -2,6 +2,8 @@ import numpy as np
 import scipy as sp
 import cpasocp.core.linear_operators as core_lin_op
 import cpasocp.core.proximal_online_part as core_online
+from math import sqrt as sqrt
+import cpasocp.core.SuperMann as SuperMann
 
 
 def make_alpha(prediction_horizon, state_dynamics, control_dynamics, stage_state, control_state, terminal_state,
@@ -199,8 +201,6 @@ def CP_scaling_for_ocp(scaling_factor, epsilon, initial_guess_z,
     eta_next = eta0
     n_max = 10000
     residuals_cache = np.zeros((n_max, 3))
-    residual_z = np.zeros((n_z, 1, n_max + 1))  # tensor
-    residual_eta = np.zeros((n_z, 1, n_max + 1))  # tensor
 
     for i in range(n_max):
         z_prev = z_next
@@ -244,109 +244,6 @@ def CP_scaling_for_ocp(scaling_factor, epsilon, initial_guess_z,
         status = 1  # converge failed
     residuals_cache = residuals_cache[0:i, :]
     return residuals_cache, z_next_scaling_back, status
-
-
-def cost_function(N, Q, R, P, v):
-    f = 0
-    n_x = Q.shape[0]
-    n_u = R.shape[0]
-    for i in range(N):
-        x = v[i * (n_x + n_u): i * (n_x + n_u) + n_x]
-        u = v[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
-        f += 0.5 * (x.T @ Q @ x + u.T @ R @ u)
-    x = v[N * (n_x + n_u): N * (n_x + n_u) + n_x]
-    f += 0.5 * x.T @ P @ x
-    return f
-
-
-def gradient_of_cost_function(N, Q, R, P, v):
-    n_x = Q.shape[0]
-    n_u = R.shape[0]
-    n_z = N * (n_x + n_u) + n_x
-    z = v[0:n_z]
-    eta = v[n_z:2 * n_z]
-    x = z[0: n_x]
-    gf_x = Q @ x
-    u = z[n_x: n_x + n_u]
-    gf_u = R @ u
-    gf = np.vstack((gf_x, gf_u))
-    for i in range(1, N):
-        x = z[i * (n_x + n_u): i * (n_x + n_u) + n_x]
-        gf_x = Q @ x
-        gf = np.vstack((gf, gf_x))
-        u = z[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
-        gf_u = R @ u
-        gf = np.vstack((gf, gf_u))
-    x = z[N * (n_x + n_u): N * (n_x + n_u) + n_x]
-    gf_N = P @ x
-    gf = np.vstack((gf, gf_N))
-    for i in range(0, N):
-        x = eta[i * (n_x + n_u): i * (n_x + n_u) + n_x]
-        gf_x = Q @ x
-        gf = np.vstack((gf, gf_x))
-        u = eta[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
-        gf_u = R @ u
-        gf = np.vstack((gf, gf_u))
-    x = eta[N * (n_x + n_u): N * (n_x + n_u) + n_x]
-    gf_N = P @ x
-    gf = np.vstack((gf, gf_N))
-    return gf
-
-
-def make_direction(loop_time, gradient_prev, N, n_z, Q, R, P, x_k, m, oldest_flag, s_cache, y_cache, yTs_cache):
-    if loop_time == 0:
-        # make direction alpha
-        direction_alpha = 1
-        direction_c_1 = 1e-4
-        direction_c_2 = 0.9
-        p = - gradient_prev
-        running = True
-        while running:
-            Armijo_condition = cost_function(N, Q, R, P, x_k + direction_alpha * p) <= cost_function(N, Q, R, P, x_k) \
-                               + direction_c_1 * direction_alpha * gradient_prev.T @ p
-            curvature_condition = gradient_of_cost_function(N, Q, R, P, x_k + direction_alpha * p).T @ p \
-                                  >= direction_c_2 * gradient_prev.T @ p
-            if Armijo_condition and curvature_condition:
-                break
-            direction_alpha *= 0.5
-        d_k = - direction_alpha * gradient_prev
-    else:
-        top = s_cache[(loop_time - 1) % m].T @ y_cache[(loop_time - 1) % m]
-        bottom = y_cache[(loop_time - 1) % m].T @ y_cache[(loop_time - 1) % m]
-        gamma_k = top / bottom
-        H_0_k = gamma_k * np.eye(2 * n_z)
-
-        q = gradient_of_cost_function(N, Q, R, P, x_k)
-        L_BFGS_alpha = [None] * m
-        rho = [None] * m
-        if loop_time >= m:
-            for i in range(m):
-                new_to_old_index = oldest_flag - 1 - i
-                rho[new_to_old_index] = 1 / yTs_cache[new_to_old_index]
-            for i in range(m):
-                new_to_old_index = oldest_flag - 1 - i
-                L_BFGS_alpha[new_to_old_index] = rho[new_to_old_index] * s_cache[new_to_old_index].T @ q
-                q = q - L_BFGS_alpha[new_to_old_index] * y_cache[new_to_old_index]
-            r = H_0_k @ q
-            for i in range(m):
-                old_to_new_index = oldest_flag - m + i
-                beta = rho[old_to_new_index] * y_cache[old_to_new_index].T @ r
-                r = r + s_cache[old_to_new_index] * (L_BFGS_alpha[old_to_new_index] - beta)
-        else:
-            for i in range(loop_time):
-                new_to_old_index = oldest_flag - 1 - i
-                rho[new_to_old_index] = 1 / yTs_cache[new_to_old_index]
-            for i in range(loop_time):
-                new_to_old_index = oldest_flag - 1 - i
-                L_BFGS_alpha[new_to_old_index] = rho[new_to_old_index] * (s_cache[new_to_old_index].T @ q)[0, 0]
-                q = q - L_BFGS_alpha[new_to_old_index] * y_cache[new_to_old_index]
-            r = H_0_k @ q
-            for i in range(loop_time):
-                old_to_new_index = i
-                beta = rho[old_to_new_index] * (y_cache[old_to_new_index].T @ r)[0, 0]
-                r = r + s_cache[old_to_new_index] * (L_BFGS_alpha[old_to_new_index] - beta)
-        d_k = -r
-    return d_k
 
 
 def CP_SuperMann(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_adj,
@@ -416,8 +313,8 @@ def CP_SuperMann(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_a
     s_cache = [None] * m
     y_cache = [None] * m
 
-    # op_A = np.hstack((np.eye(n_z), -alpha * L_adj))
-    # op_A = np.vstack((op_A, np.hstack((-alpha * L, np.eye(n_z)))))
+    op_A = np.hstack((np.eye(n_z), -alpha * L_adj @ np.identity(n_z)))
+    op_A = np.vstack((op_A, np.hstack((-alpha * L @ np.identity(n_z), np.eye(n_z)))))
 
     for i in range(n_max):
         z_prev = z_next
@@ -437,89 +334,100 @@ def CP_SuperMann(epsilon, initial_guess_z, initial_guess_eta, alpha, L, L_z, L_a
         eta_next = eta_half_next - alpha * proj_to_c(eta_half_next / alpha, N, Gamma_x, Gamma_N, C_t, C_N)
 
         # use SuperMann
-        x_k = np.vstack((z_prev, eta_prev))
-        T_x_k = np.vstack((z_next, eta_next))
-        if i == 0:
-            r_safe = np.linalg.norm(x_k - T_x_k)
-            supermann_eta = r_safe
-        if np.linalg.norm(x_k - T_x_k, np.inf) <= epsilon:
-            break
-
-        # Choose an update direction
-        m_i = min(m, i)
-        oldest_flag = i % m
-        T_x_k_z_prev = T_x_k[0: n_z]
-        T_x_k_eta_prev = T_x_k[n_z: 2 * n_z]
-        T_x_k_z_next = core_online.proximal_of_h_online_part(prediction_horizon=N,
-                                                             proximal_lambda=alpha,
-                                                             initial_state=x0,
-                                                             initial_guess_vector=T_x_k_z_prev
-                                                                                  - alpha * L_adj @ T_x_k_eta_prev,
-                                                             state_dynamics=A,
-                                                             control_dynamics=B,
-                                                             control_weight=R,
-                                                             P_seq=P_seq,
-                                                             R_tilde_seq=R_tilde_seq,
-                                                             K_seq=K_seq,
-                                                             A_bar_seq=A_bar_seq)
-        T_x_k_eta_half_next = T_x_k_eta_prev + alpha * L @ (2 * T_x_k_z_next - T_x_k_z_prev)
-        T_x_k_eta_next = T_x_k_eta_half_next - alpha * proj_to_c(T_x_k_eta_half_next / alpha,
-                                                                 N, Gamma_x, Gamma_N, C_t, C_N)
-        TT_x_k = np.vstack((T_x_k_z_next, T_x_k_eta_next))
-        s_cache[oldest_flag] = x_k - T_x_k
-        y_cache[oldest_flag] = (x_k - T_x_k) - (T_x_k - TT_x_k)
-        r_k = x_k - T_x_k
-        S_k = s_cache[0]
-        Y_k = y_cache[0]
-        for k in range(1, m_i+1):
-            if k < m:
-                S_k = np.hstack((S_k, s_cache[k]))
-                Y_k = np.hstack((Y_k, y_cache[k]))
-        t_k = np.linalg.lstsq(Y_k, r_k, rcond=None)[0]
-        d_k = -r_k - (S_k - Y_k) @ t_k
-
-        # K0
-        if np.linalg.norm(x_k - T_x_k) <= c0 * supermann_eta:
-            supermann_eta = np.linalg.norm(x_k - T_x_k)
-            w_k = x_k + d_k
-            x_k = w_k
-            # update z, eta to CP
-            z_next = x_k[0:n_z]
-            eta_next = x_k[n_z:2 * n_z]
-            continue
-        tau_k = 1
-        for k in range(n_max):
-            w_k = x_k + tau_k * d_k
-            w_z_prev = w_k[0:n_z]
-            w_eta_prev = w_k[n_z:2 * n_z]
-            w_z_next = core_online.proximal_of_h_online_part(prediction_horizon=N,
-                                                             proximal_lambda=alpha,
-                                                             initial_state=x0,
-                                                             initial_guess_vector=w_z_prev - alpha * L_adj @ w_eta_prev,
-                                                             state_dynamics=A,
-                                                             control_dynamics=B,
-                                                             control_weight=R,
-                                                             P_seq=P_seq,
-                                                             R_tilde_seq=R_tilde_seq,
-                                                             K_seq=K_seq,
-                                                             A_bar_seq=A_bar_seq)
-            w_eta_half_next = w_eta_prev + alpha * L @ (2 * w_z_next - w_z_prev)
-            w_eta_next = w_eta_half_next - alpha * proj_to_c(w_eta_half_next / alpha, N, Gamma_x, Gamma_N, C_t, C_N)
-            T_w_k = np.vstack((w_z_next, w_eta_next))
-            # K1
-            if np.linalg.norm(x_k - T_x_k) <= r_safe \
-                    and np.linalg.norm(w_k - T_w_k) <= c1 * np.linalg.norm(x_k - T_x_k):
-                x_k = w_k
-                r_safe = np.linalg.norm(w_k - T_w_k) + q ** i
-                break
-            # K2
-            rho_k = np.linalg.norm(w_k - T_w_k) ** 2 \
-                    - 2 * 0.5 * np.inner(np.reshape(w_k - T_w_k, (1, -1)), np.reshape(w_k - x_k, (1, -1)))
-            if rho_k[0, 0] >= sigma * np.linalg.norm(w_k - T_w_k) * np.linalg.norm(x_k - T_x_k):
-                x_k = x_k - lambda_ * rho_k[0, 0] / (np.linalg.norm(w_k - T_w_k) ** 2) * (w_k - T_w_k)
-                break
-            else:
-                tau_k = beta * tau_k
+        # x_k = np.vstack((z_prev, eta_prev))
+        # T_x_k = np.vstack((z_next, eta_next))
+        # if i == 0:
+        #     r_safe = sqrt((x_k - T_x_k).T @ op_A @ (x_k - T_x_k))
+        #     supermann_eta = r_safe
+        # if sqrt((x_k - T_x_k).T @ op_A @ (x_k - T_x_k)) <= epsilon:
+        #     break
+        #
+        # # Choose an update direction
+        # m_i = min(m, i)
+        # oldest_flag = i % m
+        # T_x_k_z_prev = T_x_k[0: n_z]
+        # T_x_k_eta_prev = T_x_k[n_z: 2 * n_z]
+        # T_x_k_z_next = core_online.proximal_of_h_online_part(prediction_horizon=N,
+        #                                                      proximal_lambda=alpha,
+        #                                                      initial_state=x0,
+        #                                                      initial_guess_vector=T_x_k_z_prev
+        #                                                                           - alpha * L_adj @ T_x_k_eta_prev,
+        #                                                      state_dynamics=A,
+        #                                                      control_dynamics=B,
+        #                                                      control_weight=R,
+        #                                                      P_seq=P_seq,
+        #                                                      R_tilde_seq=R_tilde_seq,
+        #                                                      K_seq=K_seq,
+        #                                                      A_bar_seq=A_bar_seq)
+        # T_x_k_eta_half_next = T_x_k_eta_prev + alpha * L @ (2 * T_x_k_z_next - T_x_k_z_prev)
+        # T_x_k_eta_next = T_x_k_eta_half_next - alpha * proj_to_c(T_x_k_eta_half_next / alpha,
+        #                                                          N, Gamma_x, Gamma_N, C_t, C_N)
+        # TT_x_k = np.vstack((T_x_k_z_next, T_x_k_eta_next))
+        # s_cache[oldest_flag] = x_k - T_x_k
+        # y_cache[oldest_flag] = (x_k - T_x_k) - (T_x_k - TT_x_k)
+        # r_k = x_k - T_x_k
+        # S_k = s_cache[0]
+        # Y_k = y_cache[0]
+        # for k in range(1, m_i+1):
+        #     if k < m:
+        #         S_k = np.hstack((S_k, s_cache[k]))
+        #         Y_k = np.hstack((Y_k, y_cache[k]))
+        # t_k = np.linalg.lstsq(Y_k, r_k, rcond=None)[0]
+        # d_k = -r_k - (S_k - Y_k) @ t_k
+        #
+        # # K0
+        # if sqrt((x_k - T_x_k).T @ op_A @ (x_k - T_x_k)) <= c0 * supermann_eta:
+        #     supermann_eta = sqrt((x_k - T_x_k).T @ op_A @ (x_k - T_x_k))
+        #     w_k = x_k + d_k
+        #     x_k = w_k
+        #     # update z, eta to CP
+        #     z_next = x_k[0:n_z]
+        #     eta_next = x_k[n_z:2 * n_z]
+        #     continue
+        # tau_k = 1
+        # for k in range(n_max):
+        #     w_k = x_k + tau_k * d_k
+        #     w_z_prev = w_k[0:n_z]
+        #     w_eta_prev = w_k[n_z:2 * n_z]
+        #     w_z_next = core_online.proximal_of_h_online_part(prediction_horizon=N,
+        #                                                      proximal_lambda=alpha,
+        #                                                      initial_state=x0,
+        #                                                      initial_guess_vector=w_z_prev - alpha * L_adj @ w_eta_prev,
+        #                                                      state_dynamics=A,
+        #                                                      control_dynamics=B,
+        #                                                      control_weight=R,
+        #                                                      P_seq=P_seq,
+        #                                                      R_tilde_seq=R_tilde_seq,
+        #                                                      K_seq=K_seq,
+        #                                                      A_bar_seq=A_bar_seq)
+        #     w_eta_half_next = w_eta_prev + alpha * L @ (2 * w_z_next - w_z_prev)
+        #     w_eta_next = w_eta_half_next - alpha * proj_to_c(w_eta_half_next / alpha, N, Gamma_x, Gamma_N, C_t, C_N)
+        #     T_w_k = np.vstack((w_z_next, w_eta_next))
+        #     # K1
+        #     if sqrt((x_k - T_x_k).T @ op_A @ (x_k - T_x_k)) <= r_safe \
+        #             and sqrt((w_k - T_w_k).T @ op_A @ (w_k - T_w_k)) <= c1 * sqrt((x_k - T_x_k).T @ op_A @ (x_k - T_x_k)):
+        #         x_k = w_k
+        #         r_safe = sqrt((w_k - T_w_k).T @ op_A @ (w_k - T_w_k)) + q ** i
+        #         break
+        #     # K2
+        #     rho_k = sqrt((w_k - T_w_k).T @ op_A @ (w_k - T_w_k)) ** 2 \
+        #             - 2 * 0.5 * (w_k - T_w_k).T @ op_A @ (w_k - x_k)
+        #     if rho_k[0, 0] >= sigma * sqrt((w_k - T_w_k).T @ op_A @ (w_k - T_w_k)) \
+        #             * sqrt((x_k - T_x_k).T @ op_A @ (x_k - T_x_k)):
+        #         x_k = x_k - lambda_ * rho_k[0, 0] / (sqrt((w_k - T_w_k).T @ op_A @ (w_k - T_w_k)) ** 2) * (w_k - T_w_k)
+        #         break
+        #     else:
+        #         tau_k = beta * tau_k
+        r_safe = 0
+        supermann_eta = 0
+        x_k, r_safe, supermann_eta, s_cache, y_cache = SuperMann.SuperMann(epsilon, z_prev, eta_prev, z_next, eta_next, op_A, m, i,
+                                                            n_z, alpha, prediction_horizon,
+                                                            initial_state, L, L_adj, state_dynamics, control_dynamics,
+                                                            control_weight, P_seq,
+                                                            R_tilde_seq, K_seq,
+                                                            A_bar_seq, stage_state, terminal_state, stage_sets,
+                                                            terminal_set, s_cache, y_cache, n_max,
+                                                            c0, c1, q, sigma, lambda_, beta, r_safe, supermann_eta)
         # update z, eta to CP
         z_next = x_k[0:n_z]
         eta_next = x_k[n_z:2 * n_z]

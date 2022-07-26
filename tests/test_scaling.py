@@ -125,6 +125,18 @@ class TestScaling(unittest.TestCase):
 
     z_cvxpy_scaling = np.vstack((z_cvxpy_scaling, np.reshape(x_seq.value[:, N], (n_x, 1))))  # xN
     z_cvxpy_scaling = z_cvxpy_scaling * scaling_factor
+    f = 0
+    gradient_f = 0
+    for i in range(N):
+        x_t = z_cvxpy_scaling[i * (n_x + n_u): i * (n_x + n_u) + n_x]
+        u_t = z_cvxpy_scaling[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
+        f += 0.5 * (x_t.T @ Q @ x_t + u_t.T @ R @ u_t)
+        gradient_f += Q @ x_t
+    x_N = z_cvxpy_scaling[N * (n_x + n_u): N * (n_x + n_u) + n_x]
+    f += 0.5 * x_N.T @ Q @ x_N
+    f = f[0, 0]
+    gradient_f += P @ x_N
+    print(f)
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -147,6 +159,22 @@ class TestScaling(unittest.TestCase):
         print('error_scaling_cvxpy:', error_scaling_cvxpy)
         self.assertAlmostEqual(error_scaling_cvxpy, 0, delta=tol)
 
+        N = TestScaling.prediction_horizon
+        n_x = TestScaling.A.shape[1]
+        n_u = TestScaling.B.shape[1]
+        f = 0
+        gradient_f = 0
+        for i in range(N):
+            x_t = z_scaling[i * (n_x + n_u): i * (n_x + n_u) + n_x]
+            u_t = z_scaling[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
+            f += 0.5 * (x_t.T @ TestScaling.Q @ x_t + u_t.T @ TestScaling.R @ u_t)
+            gradient_f += TestScaling.Q @ x_t
+        x_N = z_scaling[N * (n_x + n_u): N * (n_x + n_u) + n_x]
+        f += 0.5 * x_N.T @ TestScaling.Q @ x_N
+        f = f[0, 0]
+        gradient_f += TestScaling.P @ x_N
+        print(f)
+
     def test_ADMM_scaling(self):
         tol = 1e-3
         # ADMM scaling
@@ -164,6 +192,21 @@ class TestScaling(unittest.TestCase):
         print('error_ADMM_scaling_cvxpy:', error_ADMM_scaling_cvxpy)
         self.assertAlmostEqual(error_ADMM_scaling_cvxpy, 0, delta=tol)
 
+        N = TestScaling.prediction_horizon
+        n_x = TestScaling.A.shape[1]
+        n_u = TestScaling.B.shape[1]
+        f = 0
+        gradient_f = 0
+        for i in range(N):
+            x_t = z_ADMM_scaling[i * (n_x + n_u): i * (n_x + n_u) + n_x]
+            u_t = z_ADMM_scaling[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
+            f += 0.5 * (x_t.T @ TestScaling.Q @ x_t + u_t.T @ TestScaling.R @ u_t)
+            gradient_f += TestScaling.Q @ x_t
+        x_N = z_ADMM_scaling[N * (n_x + n_u): N * (n_x + n_u) + n_x]
+        f += 0.5 * x_N.T @ TestScaling.Q @ x_N
+        f = f[0, 0]
+        gradient_f += TestScaling.P @ x_N
+        print(f)
 
 if __name__ == '__main__':
     unittest.main()

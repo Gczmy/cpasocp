@@ -119,6 +119,18 @@ class TestResults(unittest.TestCase):
         z_cvxpy = np.vstack((z_cvxpy, np.reshape(u_seq.value[:, i], (n_u, 1))))
 
     z_cvxpy = np.vstack((z_cvxpy, np.reshape(x_seq.value[:, N], (n_x, 1))))  # xN
+    f = 0
+    gradient_f = 0
+    for i in range(N):
+        x_t = z_cvxpy[i * (n_x + n_u): i * (n_x + n_u) + n_x]
+        u_t = z_cvxpy[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
+        f += 0.5 * (x_t.T @ Q @ x_t + u_t.T @ R @ u_t)
+        gradient_f += Q @ x_t
+    x_N = z_cvxpy[N * (n_x + n_u): N * (n_x + n_u) + n_x]
+    f += 0.5 * x_N.T @ Q @ x_N
+    f = f[0, 0]
+    gradient_f += P @ x_N
+    print(f)
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -135,9 +147,25 @@ class TestResults(unittest.TestCase):
             .chambolle_pock_algorithm(TestResults.epsilon, TestResults.initial_state, TestResults.z0, TestResults.eta0)
 
         z_chambolle_pock = solution.get_z_value
+        N = TestResults.prediction_horizon
+        n_x = TestResults.A.shape[1]
+        n_u = TestResults.B.shape[1]
         error_CP = np.linalg.norm(z_chambolle_pock - TestResults.z_cvxpy, np.inf)
         print('error_CP:', error_CP)
         self.assertAlmostEqual(error_CP, 0, delta=tol)
+        f = 0
+        gradient_f = 0
+        for i in range(N):
+            x_t = z_chambolle_pock[i * (n_x + n_u): i * (n_x + n_u) + n_x]
+            u_t = z_chambolle_pock[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
+            f += 0.5 * (x_t.T @ TestResults.Q @ x_t + u_t.T @ TestResults.R @ u_t)
+            gradient_f += TestResults.Q @ x_t
+        x_N = z_chambolle_pock[N * (n_x + n_u): N * (n_x + n_u) + n_x]
+        f += 0.5 * x_N.T @ TestResults.Q @ x_N
+        f = f[0, 0]
+        gradient_f += TestResults.P @ x_N
+        print(f)
+        # print(gradient_f)
 
     def test_ADMM_results(self):
         tol = 1e-3
@@ -156,13 +184,18 @@ class TestResults(unittest.TestCase):
         error_ADMM = np.linalg.norm(z_ADMM - TestResults.z_cvxpy, np.inf)
         print('error_ADMM:', error_ADMM)
         self.assertAlmostEqual(error_ADMM, 0, delta=tol)
+        f = 0
         gradient_f = 0
         for i in range(N):
             x_t = z_ADMM[i * (n_x + n_u): i * (n_x + n_u) + n_x]
             u_t = z_ADMM[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
+            f += 0.5 * (x_t.T @ TestResults.Q @ x_t + u_t.T @ TestResults.R @ u_t)
             gradient_f += TestResults.Q @ x_t
         x_N = z_ADMM[N * (n_x + n_u): N * (n_x + n_u) + n_x]
+        f += 0.5 * x_N.T @ TestResults.Q @ x_N
+        f = f[0, 0]
         gradient_f += TestResults.P @ x_N
+        print(f)
         # print(gradient_f)
         # distance = np.inner(-gradient_f, )
 

@@ -87,6 +87,7 @@ class TestOnlinePart(unittest.TestCase):
                                                               R_tilde_seq=R_tilde_seq,
                                                               K_seq=K_seq,
                                                               A_bar_seq=A_bar_seq)
+        print(z_online_part)
         error = np.linalg.norm(z_cp - z_online_part, np.inf)
         self.assertAlmostEqual(error, 0, delta=tol)
 
