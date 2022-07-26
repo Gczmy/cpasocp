@@ -8,8 +8,8 @@ import time
 
 class TestScaling(unittest.TestCase):
     # dynamics
-    prediction_horizon = 20
-    n_x = 10  # state dimension
+    prediction_horizon = 10
+    n_x = 20  # state dimension
     n_u = 10  # input dimension
 
     # A = np.array([[1, 0.7], [-0.1, 1]])  # n x n matrices
@@ -154,7 +154,7 @@ class TestScaling(unittest.TestCase):
             .CP_scaling(TestScaling.epsilon, TestScaling.initial_state, TestScaling.z0, TestScaling.eta0)
         scaling_time = time.time() - start_scaling
         z_scaling = solution_scaling.get_z_value
-
+        print('scaling_time:', scaling_time)
         error_scaling_cvxpy = np.linalg.norm(z_scaling - TestScaling.z_cvxpy_scaling, np.inf)
         print('error_scaling_cvxpy:', error_scaling_cvxpy)
         self.assertAlmostEqual(error_scaling_cvxpy, 0, delta=tol)
@@ -207,6 +207,7 @@ class TestScaling(unittest.TestCase):
         f = f[0, 0]
         gradient_f += TestScaling.P @ x_N
         print(f)
+
 
 if __name__ == '__main__':
     unittest.main()

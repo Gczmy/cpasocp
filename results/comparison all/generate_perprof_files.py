@@ -4,6 +4,7 @@ import numpy as np
 import cvxpy as cp
 import cpasocp.core.sets as core_sets
 
+# time
 f = open("Chambolle-Pock.txt", "w")
 print("---\nalgname: Chambolle-Pock\nsuccess: converged\nfree_format: True\n---", file=f)
 f.close()
@@ -17,6 +18,23 @@ f = open("ADMM.txt", "w")
 print("---\nalgname: ADMM\nsuccess: converged\nfree_format: True\n---", file=f)
 f.close()
 f = open("ADMM_scaling.txt", "w")
+print("---\nalgname: ADMM scaling\nsuccess: converged\nfree_format: True\n---", file=f)
+f.close()
+
+# cost
+f = open("Chambolle-Pock_cost.txt", "w")
+print("---\nalgname: Chambolle-Pock\nsuccess: converged\nfree_format: True\n---", file=f)
+f.close()
+# f = open("cvxpy.txt", "w")
+# print("---\nalgname: cvxpy\nsuccess: converged\nfree_format: True\n---", file=f)
+# f.close()
+f = open("CP_scaling_cost.txt", "w")
+print("---\nalgname: CP scaling\nsuccess: converged\nfree_format: True\n---", file=f)
+f.close()
+f = open("ADMM_cost.txt", "w")
+print("---\nalgname: ADMM\nsuccess: converged\nfree_format: True\n---", file=f)
+f.close()
+f = open("ADMM_scaling_cost.txt", "w")
 print("---\nalgname: ADMM scaling\nsuccess: converged\nfree_format: True\n---", file=f)
 f.close()
 
@@ -238,6 +256,86 @@ for problem_loop in range(100):
     else:
         f = open("ADMM_scaling.txt", "a")
         print(f"problem{problem_loop} failed {ADMM_scaling_time}", file=f)
+        f.close()
+
+    f_CP = 0
+    f_CP_scaling = 0
+    f_ADMM = 0
+    f_ADMM_scaling = 0
+    gradient_f_CP = 0
+    gradient_f_CP_scaling = 0
+    gradient_f_ADMM = 0
+    gradient_f_ADMM_scaling = 0
+    for i in range(N):
+        x_t_CP = z_CP[i * (n_x + n_u): i * (n_x + n_u) + n_x]
+        u_t_CP = z_CP[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
+        f_CP += 0.5 * (x_t_CP.T @ Q @ x_t_CP + u_t_CP.T @ R @ u_t_CP)
+        gradient_f_CP += Q @ x_t_CP
+
+        x_t_ADMM = z_ADMM[i * (n_x + n_u): i * (n_x + n_u) + n_x]
+        u_t_ADMM = z_ADMM[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
+        f_ADMM += 0.5 * (x_t_ADMM.T @ Q @ x_t_ADMM + u_t_ADMM.T @ R @ u_t_ADMM)
+        gradient_f_ADMM += Q @ x_t_ADMM
+
+        x_t_CP_scaling = z_CP_scaling[i * (n_x + n_u): i * (n_x + n_u) + n_x]
+        u_t_CP_scaling = z_CP_scaling[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
+        f_CP_scaling += 0.5 * (x_t_CP_scaling.T @ Q @ x_t_CP_scaling + u_t_CP_scaling.T @ R @ u_t_CP_scaling)
+        gradient_f_CP_scaling += Q @ x_t_CP_scaling
+
+        x_t_ADMM_scaling = z_ADMM_scaling[i * (n_x + n_u): i * (n_x + n_u) + n_x]
+        u_t_ADMM_scaling = z_CP[i * (n_x + n_u) + n_x: (i + 1) * (n_x + n_u)]
+        f_ADMM_scaling += 0.5 * (x_t_ADMM_scaling.T @ Q @ x_t_ADMM_scaling + u_t_ADMM_scaling.T @ R @ u_t_ADMM_scaling)
+        gradient_f_ADMM_scaling += Q @ x_t_ADMM_scaling
+    x_N_CP = z_CP[N * (n_x + n_u): N * (n_x + n_u) + n_x]
+    f_CP += 0.5 * x_N_CP.T @ Q @ x_N_CP
+    f_CP = f_CP[0, 0]
+    gradient_f_CP += P @ x_N_CP
+
+    x_N_ADMM = z_ADMM[N * (n_x + n_u): N * (n_x + n_u) + n_x]
+    f_ADMM += 0.5 * x_N_ADMM.T @ Q @ x_N_ADMM
+    f_ADMM = f_ADMM[0, 0]
+    gradient_f_ADMM += P @ x_N_ADMM
+
+    x_N_CP_scaling = z_CP_scaling[N * (n_x + n_u): N * (n_x + n_u) + n_x]
+    f_CP_scaling += 0.5 * x_N_CP_scaling.T @ Q @ x_N_CP_scaling
+    f_CP_scaling = f_CP_scaling[0, 0]
+    gradient_f_CP_scaling += P @ x_N_CP_scaling
+
+    x_N_ADMM_scaling = z_ADMM_scaling[N * (n_x + n_u): N * (n_x + n_u) + n_x]
+    f_ADMM_scaling += 0.5 * x_N_ADMM_scaling.T @ Q @ x_N_ADMM_scaling
+    f_ADMM_scaling = f_ADMM_scaling[0, 0]
+    gradient_f_ADMM_scaling += P @ x_N_ADMM_scaling
+    if solution.get_status == 0:
+        f = open("Chambolle-Pock_cost.txt", "a")
+        print(f"problem{problem_loop} converged {f_CP}", file=f)
+        f.close()
+    else:
+        f = open("Chambolle-Pock_cost.txt", "a")
+        print(f"problem{problem_loop} failed {f_CP}", file=f)
+        f.close()
+    if solution_ADMM.get_status == 0:
+        f = open("ADMM_cost.txt", "a")
+        print(f"problem{problem_loop} converged {f_ADMM}", file=f)
+        f.close()
+    else:
+        f = open("ADMM_cost.txt", "a")
+        print(f"problem{problem_loop} failed {f_ADMM}", file=f)
+        f.close()
+    if solution_CP_scaling.get_status == 0:
+        f = open("CP_scaling_cost.txt", "a")
+        print(f"problem{problem_loop} converged {f_CP_scaling}", file=f)
+        f.close()
+    else:
+        f = open("CP_scaling_cost.txt", "a")
+        print(f"problem{problem_loop} failed {f_CP_scaling}", file=f)
+        f.close()
+    if solution_ADMM_scaling.get_status == 0:
+        f = open("ADMM_scaling_cost.txt", "a")
+        print(f"problem{problem_loop} converged {f_ADMM_scaling}", file=f)
+        f.close()
+    else:
+        f = open("ADMM_scaling_cost.txt", "a")
+        print(f"problem{problem_loop} failed {f_ADMM_scaling}", file=f)
         f.close()
 
     print('problem_loop:', problem_loop)

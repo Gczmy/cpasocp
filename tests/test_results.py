@@ -144,7 +144,7 @@ class TestResults(unittest.TestCase):
             .with_dynamics(TestResults.A, TestResults.B) \
             .with_cost(TestResults.cost_type, TestResults.Q, TestResults.R, TestResults.P) \
             .with_constraints(TestResults.constraints_type, TestResults.stage_sets, TestResults.terminal_set) \
-            .chambolle_pock_algorithm(TestResults.epsilon, TestResults.initial_state, TestResults.z0, TestResults.eta0)
+            .chambolle_pock(TestResults.epsilon, TestResults.initial_state, TestResults.z0, TestResults.eta0)
 
         z_chambolle_pock = solution.get_z_value
         N = TestResults.prediction_horizon

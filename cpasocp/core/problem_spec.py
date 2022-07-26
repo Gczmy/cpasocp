@@ -2,12 +2,11 @@ import cpasocp.core.dynamics as core_dynamics
 import cpasocp.core.costs as core_costs
 import cpasocp.core.constraints as core_constraints
 import cpasocp.core.proximal_offline_part as core_offline
-import cpasocp.core.chambolle_pock_algorithm as core_cpa
 import cpasocp.core.ADMM as core_admm
 import cpasocp.core.constraints_scaling as core_con_sca
 import cpasocp.core.l_bfgs as core_l_bfgs
 import cpasocp.core.sets as core_sets
-import cpasocp.core.CP_tem as core_CP_tem
+import cpasocp.core.chambolle_pock as core_cp
 
 
 class CPASOCP:
@@ -34,7 +33,7 @@ class CPASOCP:
         self.__Gamma_N = None
         self.__C_t = None
         self.__C_N = None
-        self.__constraints = core_constraints.Constraints(None, None, None, None, None)
+        self.__constraints = None
         self.__residuals_cache = None
         self.__z = None
         self.__alpha = None
@@ -123,11 +122,9 @@ class CPASOCP:
             self.__C_t = core_sets.Real()
         if self.__C_N is None:
             self.__C_N = core_sets.Real()
-        self.__Gamma_x, self.__Gamma_u, self.__Gamma_N = core_constraints.Constraints(
-            constraints_type, self.__A, self.__B, stage_sets, terminal_set).make_gamma_matrix()
-
-        self.__constraints = core_constraints.Constraints(constraints_type, self.__A, self.__B, stage_sets,
-                                                          terminal_set)
+        self.__constraints = core_constraints.Constraints(
+            constraints_type, self.__A, self.__B, stage_sets, terminal_set)
+        self.__Gamma_x, self.__Gamma_u, self.__Gamma_N = self.__constraints.make_gamma_matrix()
         return self
 
     # Constraints scaling ----------------------------------------------------------------------------------------------
@@ -141,145 +138,105 @@ class CPASOCP:
             self.__C_t = core_sets.Real()
         if self.__C_N is None:
             self.__C_N = core_sets.Real()
-        self.__scaling_factor = core_con_sca.Constraints(
-            constraints_type, self.__A, self.__B, stage_sets, terminal_set).scaling_factor
-        self.__Gamma_x = core_con_sca.Constraints(
-            constraints_type, self.__A, self.__B, stage_sets, terminal_set).Gamma_x
-        self.__Gamma_u = core_con_sca.Constraints(
-            constraints_type, self.__A, self.__B, stage_sets, terminal_set).Gamma_u
-        self.__Gamma_N = core_con_sca.Constraints(
-            constraints_type, self.__A, self.__B, stage_sets, terminal_set).Gamma_N
-        self.__C_t = core_con_sca.Constraints(
-            constraints_type, self.__A, self.__B, stage_sets, terminal_set).stage_sets
-        self.__C_N = core_con_sca.Constraints(
-            constraints_type, self.__A, self.__B, stage_sets, terminal_set).terminal_set
         self.__constraints = core_con_sca.Constraints(
             constraints_type, self.__A, self.__B, stage_sets, terminal_set)
+        self.__scaling_factor = self.__constraints.scaling_factor
+        self.__Gamma_x = self.__constraints.Gamma_x
+        self.__Gamma_u = self.__constraints.Gamma_u
+        self.__Gamma_N = self.__constraints.Gamma_N
+        self.__C_t = self.__constraints.stage_sets
+        self.__C_N = self.__constraints.terminal_set
         return self
 
     # Chambolle-Pock algorithm for Optimal Control Problems ------------------------------------------------------------
 
-    def chambolle_pock_algorithm(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
-        L, L_z, L_adj, self.__alpha = core_cpa.make_alpha(
-            self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u, self.__Gamma_N,
-            initial_guess_z)
-
+    def chambolle_pock(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
+        L, L_z, L_adj, alpha = core_cp.make_alpha(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x,
+                                                      self.__Gamma_u, self.__Gamma_N, initial_guess_z)
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
-            self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
-        self.__residuals_cache, self.__z, self.__status = core_cpa.CP_for_ocp(
-            epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
-            initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
+            self.__prediction_horizon, alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
+        CP = core_cp.ChambollePock(
+            epsilon, initial_guess_z, initial_guess_eta,
+            self.__prediction_horizon, initial_state, L, L_z, L_adj, alpha, self.__A, self.__B,
+            self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x, self.__Gamma_u,
             self.__Gamma_N, self.__C_t, self.__C_N)
+        CP.CP_for_ocp()
+        self.__residuals_cache = CP.get_residuals_cache
+        self.__z = CP.get_z
+        self.__status = CP.get_status
         return self
 
-    def CP_tem(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
-        L, L_z, L_adj, alpha = core_CP_tem.make_alpha(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x,
-                                              self.__Gamma_u, self.__Gamma_N, initial_guess_z)
+    # SuperMann --------------------------------------------------------------------------------------------------------
+
+    def CP_SupperMann(self, epsilon, initial_state, initial_guess_z, initial_guess_eta, memory_num, c0, c1, q, beta,
+                      sigma, lambda_):
+        L, L_z, L_adj, alpha = core_cp.make_alpha(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x,
+                                                      self.__Gamma_u, self.__Gamma_N, initial_guess_z)
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
             self.__prediction_horizon, alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
-        core_CP_tem.ChambollePock(
+        CP_sup = core_cp.ChambollePock(
             epsilon, initial_guess_z, initial_guess_eta,
             self.__prediction_horizon, initial_state, L, L_z, L_adj, alpha, self.__A, self.__B,
             self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x, self.__Gamma_u,
-            self.__Gamma_N, self.__C_t, self.__C_N).CP_for_ocp()
-        self.__residuals_cache = core_CP_tem.ChambollePock(epsilon, initial_guess_z, initial_guess_eta,
-                                                           self.__prediction_horizon, initial_state, L, L_z, L_adj,
-                                                           alpha, self.__A, self.__B,
-                                                           self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq,
-                                                           self.__Gamma_x, self.__Gamma_u,
-                                                           self.__Gamma_N, self.__C_t, self.__C_N).get_residuals_cache
-        self.__z = core_CP_tem.ChambollePock(epsilon, initial_guess_z, initial_guess_eta,
-                                             self.__prediction_horizon, initial_state, L, L_z, L_adj, alpha, self.__A,
-                                             self.__B,
-                                             self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
-                                             self.__Gamma_u,
-                                             self.__Gamma_N, self.__C_t, self.__C_N).get_z
-        self.__status = core_CP_tem.ChambollePock(epsilon, initial_guess_z, initial_guess_eta,
-                                                  self.__prediction_horizon, initial_state, L, L_z, L_adj, alpha,
-                                                  self.__A, self.__B,
-                                                  self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
-                                                  self.__Gamma_u,
-                                                  self.__Gamma_N, self.__C_t, self.__C_N).get_status
-        return self
-
-    def CP_tem_Sup(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
-        L, L_z, L_adj, alpha = core_CP_tem.make_alpha(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x,
-                                              self.__Gamma_u, self.__Gamma_N, initial_guess_z)
-        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
-            self.__prediction_horizon, alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
-        core_CP_tem.ChambollePock(
-            epsilon, initial_guess_z, initial_guess_eta,
-            self.__prediction_horizon, initial_state, L, L_z, L_adj, alpha, self.__A, self.__B,
-            self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x, self.__Gamma_u,
-            self.__Gamma_N, self.__C_t, self.__C_N).CP_SuperMann()
-        self.__residuals_cache = core_CP_tem.ChambollePock(epsilon, initial_guess_z, initial_guess_eta,
-                                                           self.__prediction_horizon, initial_state, L, L_z, L_adj,
-                                                           alpha, self.__A, self.__B,
-                                                           self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq,
-                                                           self.__Gamma_x, self.__Gamma_u,
-                                                           self.__Gamma_N, self.__C_t, self.__C_N).get_residuals_cache
-        self.__z = core_CP_tem.ChambollePock(epsilon, initial_guess_z, initial_guess_eta,
-                                             self.__prediction_horizon, initial_state, L, L_z, L_adj, alpha, self.__A,
-                                             self.__B,
-                                             self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
-                                             self.__Gamma_u,
-                                             self.__Gamma_N, self.__C_t, self.__C_N).get_z
-        self.__status = core_CP_tem.ChambollePock(epsilon, initial_guess_z, initial_guess_eta,
-                                                  self.__prediction_horizon, initial_state, L, L_z, L_adj, alpha,
-                                                  self.__A, self.__B,
-                                                  self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
-                                                  self.__Gamma_u,
-                                                  self.__Gamma_N, self.__C_t, self.__C_N).get_status
+            self.__Gamma_N, self.__C_t, self.__C_N)
+        CP_sup.CP_SuperMann(memory_num, c0, c1, q, beta, sigma, lambda_)
+        self.__residuals_cache = CP_sup.get_residuals_cache
+        self.__z = CP_sup.get_z
+        self.__status = CP_sup.get_status
         return self
 
     # Chambolle-Pock algorithm scaling for Optimal Control Problems ----------------------------------------------------
 
     def CP_scaling(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
-        L, L_z, L_adj, self.__alpha = core_cpa.make_alpha(
-            self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u, self.__Gamma_N,
-            initial_guess_z)
-
+        L, L_z, L_adj, alpha = core_cp.make_alpha(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x,
+                                                      self.__Gamma_u, self.__Gamma_N, initial_guess_z)
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
-            self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
-        self.__residuals_cache, self.__z, self.__status = core_cpa. \
-            CP_scaling_for_ocp(
-            self.__scaling_factor, epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj,
-            self.__prediction_horizon,
-            initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x,
+            self.__prediction_horizon, alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
+        CP_scaling = core_cp.ChambollePock(
+            epsilon, initial_guess_z, initial_guess_eta,
+            self.__prediction_horizon, initial_state, L, L_z, L_adj, alpha, self.__A, self.__B,
+            self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x, self.__Gamma_u,
             self.__Gamma_N, self.__C_t, self.__C_N)
+        CP_scaling.CP_scaling_for_ocp(self.__scaling_factor)
+        self.__residuals_cache = CP_scaling.get_residuals_cache
+        self.__z = CP_scaling.get_z
+        self.__status = CP_scaling.get_status
         return self
 
     # ADMM for Optimal Control Problems --------------------------------------------------------------------------------
 
     def ADMM(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
-        L, L_z, L_adj, self.__alpha = core_admm.make_alpha(
+        L, L_z, L_adj, alpha = core_admm.make_alpha(
             self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u, self.__Gamma_N,
             initial_guess_z)
-
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
-            self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
-
-        self.__z, self.__status = core_admm.ADMM_for_ocp(
-            epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj,
-            self.__prediction_horizon, initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq,
-            A_bar_seq, self.__Gamma_x, self.__Gamma_N, self.__C_t, self.__C_N)
+            self.__prediction_horizon, alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
+        ADMM = core_admm.ADMM(epsilon, initial_guess_z, initial_guess_eta, self.__prediction_horizon, initial_state,
+                              L, L_z, L_adj, alpha,
+                              self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq,
+                              A_bar_seq, self.__Gamma_x, self.__Gamma_N, self.__C_t, self.__C_N)
+        ADMM.ADMM_for_ocp()
+        self.__z = ADMM.get_z
+        self.__status = ADMM.get_status
 
         return self
 
     # ADMM scaling for Optimal Control Problems ------------------------------------------------------------------------
 
     def ADMM_scaling(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
-        L, L_z, L_adj, self.__alpha = core_admm.make_alpha(
+        L, L_z, L_adj, alpha = core_admm.make_alpha(
             self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u, self.__Gamma_N,
             initial_guess_z)
-
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
-            self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
-
-        self.__z, self.__status = core_admm.ADMM_scaling_for_ocp(
-            self.__scaling_factor, epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj,
-            self.__prediction_horizon, initial_state, self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq,
-            A_bar_seq, self.__Gamma_x, self.__Gamma_N, self.__C_t, self.__C_N)
+            self.__prediction_horizon, alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
+        ADMM_scaling = core_admm.ADMM(epsilon, initial_guess_z, initial_guess_eta, self.__prediction_horizon,
+                                      initial_state,
+                                      L, L_z, L_adj, alpha,
+                                      self.__A, self.__B, self.__R, P_seq, R_tilde_seq, K_seq,
+                                      A_bar_seq, self.__Gamma_x, self.__Gamma_N, self.__C_t, self.__C_N)
+        ADMM_scaling.ADMM_scaling_for_ocp(self.__scaling_factor)
+        self.__z = ADMM_scaling.get_z
+        self.__status = ADMM_scaling.get_status
 
         return self
 
@@ -290,21 +247,6 @@ class CPASOCP:
             self.__prediction_horizon, epsilon, initial_state, memory_num, self.__A, self.__Q, self.__R, self.__P,
             self.__q). \
             l_bfgs_algorithm()
-        return self
-
-    # SuperMann --------------------------------------------------------------------------------------------------------
-
-    def CP_SuperMann(self, epsilon, initial_state, initial_guess_z, initial_guess_eta):
-        L, L_z, L_adj, self.__alpha = core_cpa.make_alpha(
-            self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x, self.__Gamma_u, self.__Gamma_N,
-            initial_guess_z)
-
-        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
-            self.__prediction_horizon, self.__alpha, self.__A, self.__B, self.__Q, self.__R, self.__P).algorithm()
-        self.__residuals_cache, self.__z, self.__status = core_cpa.CP_SuperMann(
-            epsilon, initial_guess_z, initial_guess_eta, self.__alpha, L, L_z, L_adj, self.__prediction_horizon,
-            initial_state, self.__A, self.__B, self.__Q, self.__R, self.__P, P_seq, R_tilde_seq, K_seq, A_bar_seq,
-            self.__Gamma_x, self.__Gamma_N, self.__C_t, self.__C_N)
         return self
 
     # Class ------------------------------------------------------------------------------------------------------------

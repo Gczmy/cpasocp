@@ -1,0 +1,5 @@
+---
+algname: ADMM
+success: converged
+free_format: True
+---

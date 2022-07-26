@@ -1,7 +1,6 @@
 import numpy as np
 from math import sqrt as sqrt
 import cpasocp.core.proximal_online_part as core_online
-import cpasocp.core.chambolle_pock_algorithm as core_cp
 
 
 def SuperMann(epsilon, z_prev, eta_prev, z_next, eta_next, op_A, memory_num, loop_num, n_z, alpha, prediction_horizon,

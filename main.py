@@ -71,7 +71,7 @@ solution = cpa.core.CPASOCP(prediction_horizon) \
     .with_dynamics(A, B) \
     .with_cost(cost_type, Q, R, P) \
     .with_constraints(constraints_type, stage_sets, terminal_set) \
-    .CP_tem_Sup(epsilon, x0, z0, eta0)
+    .chambolle_pock(epsilon, x0, z0, eta0)
 CP_time = time.time() - start_CP
 print(solution)
 print(CP_time)
