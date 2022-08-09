@@ -218,7 +218,7 @@ class CPASOCP:
         ADMM.ADMM_for_ocp()
         self.__z = ADMM.get_z
         self.__status = ADMM.get_status
-
+        self.__residuals_cache = ADMM.get_residuals_cache
         return self
 
     # ADMM scaling for Optimal Control Problems ------------------------------------------------------------------------

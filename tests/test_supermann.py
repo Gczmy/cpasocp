@@ -8,21 +8,22 @@ import matplotlib.pyplot as plt
 
 
 class TestSuperMann(unittest.TestCase):
-    prediction_horizon = 10
-    n_x = 50  # state dimension
-    n_u = 20  # input dimension
+    prediction_horizon = 50
+    n_x = 2  # state dimension
+    n_u = 1  # input dimension
 
-    A = 2 * np.random.rand(n_x, n_x)  # n x n matrices
-    B = np.random.rand(n_x, n_u)  # n x u matrices
+    A = np.array([[0.9, 0.2], [-0.2, 0.9]])
+    B = np.array([[1], [0]]) / 10
 
     cost_type = "Quadratic"
-    Q = 10 * np.eye(n_x)  # n x n matrix
+    Q = 100 * np.eye(n_x)  # n x n matrix
+    Q[1, 1] = 0.1
     R = np.eye(n_u)  # u x u matrix OR scalar
     P = 5 * np.eye(n_x)  # n x n matrix
 
     constraints_type = 'Rectangle'
-    rect_min = [-20] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
-    rect_max = [20] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
+    rect_min = [-1] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
+    rect_max = [1] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
     rectangle = core_sets.Rectangle(rect_min=rect_min, rect_max=rect_max)
     stage_sets_list = [rectangle] * prediction_horizon
     stage_sets = core_sets.Cartesian(stage_sets_list)
@@ -30,11 +31,11 @@ class TestSuperMann(unittest.TestCase):
 
     # algorithm parameters
     epsilon = 1e-4
-    initial_state = 0.5 * np.random.rand(n_x)
+    initial_state = np.ones(n_x)
 
     n_z = (prediction_horizon + 1) * A.shape[1] + prediction_horizon * B.shape[1]
-    z0 = 0.5 * np.random.rand(n_z, 1)
-    eta0 = 0.5 * np.random.rand(n_z, 1)
+    z0 = np.random.rand(n_z, 1)
+    eta0 = np.random.rand(n_z, 1)
 
     # solving OCP by cvxpy
     # -----------------------------
@@ -82,6 +83,7 @@ class TestSuperMann(unittest.TestCase):
     x0_cp.value = initial_state
     problem = cp.Problem(cp.Minimize(cost), constraints)
     problem.solve()
+    print(problem.status)
 
     # Construct z, z are all the states and inputs in a big vector
     z_cvxpy = np.reshape(x_seq.value[:, 0], (n_x, 1))  # x_0
@@ -107,10 +109,21 @@ class TestSuperMann(unittest.TestCase):
             .with_cost(TestSuperMann.cost_type, TestSuperMann.Q, TestSuperMann.R, TestSuperMann.P) \
             .with_constraints(TestSuperMann.constraints_type, TestSuperMann.stage_sets, TestSuperMann.terminal_set) \
             .chambolle_pock(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0)
-
+        # solution_CP_scaling = cpa.core.CPASOCP(TestSuperMann.prediction_horizon) \
+        #     .with_dynamics(TestSuperMann.A, TestSuperMann.B) \
+        #     .with_cost(TestSuperMann.cost_type, TestSuperMann.Q, TestSuperMann.R, TestSuperMann.P) \
+        #     .with_constraints(TestSuperMann.constraints_type, TestSuperMann.stage_sets, TestSuperMann.terminal_set) \
+        #     .CP_scaling(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0)
         CP_time = time.time() - start_CP
-        z_CP = solution_CP.get_z_value
+        # z_CP = solution_CP.get_z_value
+        # for i in range(len(solution_CP_scaling.get_residuals_cache)):
+        #     print(f"({i}, {solution_CP_scaling.get_residuals_cache[i][0]})\n")
+        # for i in range(len(solution_CP_scaling.get_residuals_cache)):
+        #     print(f"({i}, {solution_CP_scaling.get_residuals_cache[i][1]})\n")
+        # for i in range(len(solution_CP_scaling.get_residuals_cache)):
+        #     print(f"({i}, {solution_CP_scaling.get_residuals_cache[i][2]})\n")
         print('CP_time:', CP_time)
+        # print('z_CP:', z_CP)
         plt.figure(1)
         plt.title('CP semilogy')
         plt.xlabel('Iterations')
@@ -137,8 +150,14 @@ class TestSuperMann(unittest.TestCase):
         CP_SuperMann_time = time.time() - start_CP_SuperMann
         z_CP_SuperMann = solution_CP_SuperMann.get_z_value
         error_CP_SuperMann = np.linalg.norm(z_CP_SuperMann - TestSuperMann.z_cvxpy, np.inf)
+        # for i in range(len(solution_CP_SuperMann.get_residuals_cache)):
+        #     print(f"({i}, {solution_CP_SuperMann.get_residuals_cache[i][0]})")
+        # for i in range(len(solution_CP_SuperMann.get_residuals_cache)):
+        #     print(f"({i}, {solution_CP_SuperMann.get_residuals_cache[i][1]})")
+        # for i in range(len(solution_CP_SuperMann.get_residuals_cache)):
+        #     print(f"({i}, {solution_CP_SuperMann.get_residuals_cache[i][2]})")
         self.assertAlmostEqual(error_CP_SuperMann, 0, delta=tol)
-        print('CP_SuperMann_time:', CP_SuperMann_time)
+        # print('CP_SuperMann_time:', CP_SuperMann_time)
 
         plt.figure(2)
         plt.title('CP_SuperMann semilogy')

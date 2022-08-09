@@ -104,6 +104,7 @@ class ADMM:
         self.__status = None
         self.__scaling_factor = None
         self.__z = None
+        self.__residuals_cache = None
 
     @property
     def get_z(self):
@@ -112,6 +113,10 @@ class ADMM:
     @property
     def get_status(self):
         return self.__status
+
+    @property
+    def get_residuals_cache(self):
+        return self.__residuals_cache
 
     def proj_to_c(self, vector):
         """
@@ -164,6 +169,7 @@ class ADMM:
         u_next = u0
         n_max = 10000
 
+        self.__residuals_cache = np.zeros((n_max, 2))
         for i in range(n_max):
             z_prev = z_next
             eta_prev = eta_next
@@ -186,6 +192,8 @@ class ADMM:
             r = z_next - L_adj @ eta_next
             t_1 = np.linalg.norm(s)
             t_2 = np.linalg.norm(r)
+            self.__residuals_cache[i, 0] = t_1
+            self.__residuals_cache[i, 1] = t_2
             # epsilon_pri = epsilon * max(np.linalg.norm(z_next), np.linalg.norm(L_adj @ eta_next))
             # epsilon_dual = epsilon * np.linalg.norm(eta_next)
             if t_2 <= epsilon and t_1 <= epsilon:
@@ -194,6 +202,7 @@ class ADMM:
         if i >= 9000:
             self.__status = 1  # converge failed
         self.__z = z_next
+        self.__residuals_cache = self.__residuals_cache[0:i, :]
         return self
 
     def ADMM_scaling_for_ocp(self, scaling_factor):
