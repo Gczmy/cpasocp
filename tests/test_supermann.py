@@ -13,11 +13,11 @@ class TestSuperMann(unittest.TestCase):
     n_u = 1  # input dimension
 
     A = np.array([[0.9, 0.2], [-0.2, 0.9]])
-    B = np.array([[1], [0]]) / 10
+    B = np.array([[1], [0]]) / 0.1
 
     cost_type = "Quadratic"
     Q = 100 * np.eye(n_x)  # n x n matrix
-    Q[1, 1] = 0.1
+    Q[0, 0] = 0.1
     R = np.eye(n_u)  # u x u matrix OR scalar
     P = 5 * np.eye(n_x)  # n x n matrix
 
@@ -100,7 +100,7 @@ class TestSuperMann(unittest.TestCase):
         super().setUpClass()
 
     def test_supermann(self):
-        tol = 1e-3
+        tol = 1e-4
         # Chambolle-Pock method
         # --------------------------------------------------------------------------------------------------------------
         start_CP = time.time()
@@ -115,13 +115,14 @@ class TestSuperMann(unittest.TestCase):
         #     .with_constraints(TestSuperMann.constraints_type, TestSuperMann.stage_sets, TestSuperMann.terminal_set) \
         #     .CP_scaling(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0)
         CP_time = time.time() - start_CP
-        # z_CP = solution_CP.get_z_value
-        # for i in range(len(solution_CP_scaling.get_residuals_cache)):
-        #     print(f"({i}, {solution_CP_scaling.get_residuals_cache[i][0]})\n")
-        # for i in range(len(solution_CP_scaling.get_residuals_cache)):
-        #     print(f"({i}, {solution_CP_scaling.get_residuals_cache[i][1]})\n")
-        # for i in range(len(solution_CP_scaling.get_residuals_cache)):
-        #     print(f"({i}, {solution_CP_scaling.get_residuals_cache[i][2]})\n")
+        z_CP = solution_CP.get_z_value
+        print("CP residuals_cache")
+        for i in range(len(solution_CP.get_residuals_cache)):
+            print(f"({i}, {solution_CP.get_residuals_cache[i][0]})")
+        for i in range(len(solution_CP.get_residuals_cache)):
+            print(f"({i}, {solution_CP.get_residuals_cache[i][1]})")
+        for i in range(len(solution_CP.get_residuals_cache)):
+            print(f"({i}, {solution_CP.get_residuals_cache[i][2]})")
         print('CP_time:', CP_time)
         # print('z_CP:', z_CP)
         plt.figure(1)
@@ -150,12 +151,13 @@ class TestSuperMann(unittest.TestCase):
         CP_SuperMann_time = time.time() - start_CP_SuperMann
         z_CP_SuperMann = solution_CP_SuperMann.get_z_value
         error_CP_SuperMann = np.linalg.norm(z_CP_SuperMann - TestSuperMann.z_cvxpy, np.inf)
-        # for i in range(len(solution_CP_SuperMann.get_residuals_cache)):
-        #     print(f"({i}, {solution_CP_SuperMann.get_residuals_cache[i][0]})")
-        # for i in range(len(solution_CP_SuperMann.get_residuals_cache)):
-        #     print(f"({i}, {solution_CP_SuperMann.get_residuals_cache[i][1]})")
-        # for i in range(len(solution_CP_SuperMann.get_residuals_cache)):
-        #     print(f"({i}, {solution_CP_SuperMann.get_residuals_cache[i][2]})")
+        print("SuperMann residuals_cache")
+        for i in range(len(solution_CP_SuperMann.get_residuals_cache)):
+            print(f"({i}, {solution_CP_SuperMann.get_residuals_cache[i][0]})")
+        for i in range(len(solution_CP_SuperMann.get_residuals_cache)):
+            print(f"({i}, {solution_CP_SuperMann.get_residuals_cache[i][1]})")
+        for i in range(len(solution_CP_SuperMann.get_residuals_cache)):
+            print(f"({i}, {solution_CP_SuperMann.get_residuals_cache[i][2]})")
         self.assertAlmostEqual(error_CP_SuperMann, 0, delta=tol)
         # print('CP_SuperMann_time:', CP_SuperMann_time)
 

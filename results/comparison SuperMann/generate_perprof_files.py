@@ -7,14 +7,13 @@ import cpasocp.core.sets as core_sets
 f = open("Chambolle-Pock.txt", "w")
 print("---\nalgname: Chambolle-Pock\nsuccess: converged\nfree_format: True\n---", file=f)
 f.close()
-f = open("Preconditioning.txt", "w")
-print("---\nalgname: Preconditioning\nsuccess: converged\nfree_format: True\n---", file=f)
+f = open("SuperMann.txt", "w")
+print("---\nalgname: SuperMann\nsuccess: converged\nfree_format: True\n---", file=f)
 f.close()
-
 solved_num = 0
 while solved_num < 100:
     # dynamics
-    prediction_horizon = 20
+    prediction_horizon = 5
 
     n_x = 10  # state dimension
     n_u = 10  # input dimension
@@ -26,8 +25,8 @@ while solved_num < 100:
 
     # costs
     cost_type = "Quadratic"
-    Q = 100 * np.eye(n_x)  # n x n matrix
-    # Q[n_x-1, n_x-1] = 0.1
+    Q = 1000 * np.eye(n_x)  # n x n matrix
+    Q[n_x-1, n_x-1] = 0.1
     R = np.eye(n_u)  # u x u matrix OR scalar
     P = 5 * np.eye(n_x)  # n x n matrix
 
@@ -35,45 +34,21 @@ while solved_num < 100:
     constraints_type = 'Rectangle'
     rect_min = [-1] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
     rect_max = [1] * (n_x + n_u)  # constraints for x^0, ..., x^n, u^0, ..., u^n
-    for i in range(n_x + n_u):
-        # rect_min[i] = np.random.rand()
-        # rect_max[i] = np.random.rand()
-        if (i % 2) == 0:
-            rect_min[i] = rect_min[i] * 5
-            rect_max[i] = rect_max[i] * 5
-        else:
-            rect_min[i] = rect_min[i] * 2
-            rect_max[i] = rect_max[i] * 2
+
     rectangle = core_sets.Rectangle(rect_min=rect_min, rect_max=rect_max)
     stage_sets_list = [rectangle] * prediction_horizon
     stage_sets = core_sets.Cartesian(stage_sets_list)
     terminal_set = core_sets.Rectangle(rect_min=rect_min, rect_max=rect_max)
     # initial_state = np.array([0.2, 0.5])
     initial_state = np.ones(n_x)
-    for i in range(n_x):
-        if (i % 2) == 0:
-            initial_state[i] = initial_state[i] * 5
-        else:
-            initial_state[i] = initial_state[i] * 2
 
     n_z = (prediction_horizon + 1) * A.shape[1] + prediction_horizon * B.shape[1]
     z0 = np.random.rand(n_z, 1)
     eta0 = np.random.rand(n_z, 1)
-    # z0 = 0.5 * np.random.rand(n_z, 1) + 0.1
-    # eta0 = 0.5 * np.random.rand(n_z, 1) + 0.1
-    # for j in range(prediction_horizon):
-    #     for i in range(n_x + n_u):
-    #         z0[j * (n_x + n_u) + i] = np.random.random()
-    #         eta0[j * (n_x + n_u) + i] = np.random.random()
-    #         if ((j * (n_x + n_u) + i) % 2) == 0:
-    #             z0[j * (n_x + n_u) + i] *= 1000
-    #             eta0[j * (n_x + n_u) + i] *= 1000
-    #         else:
-    #             z0[j * (n_x + n_u) + i] *= 100
-    #             eta0[j * (n_x + n_u) + i] *= 100
 
     # algorithm parameters
     epsilon = 1e-4
+
     # solving OCP by cvxpy
     # -----------------------------
     N = prediction_horizon
@@ -123,12 +98,10 @@ while solved_num < 100:
     print(problem.status)
     if problem.status == 'optimal':
         solved_num += 1
-        # Chambolle-Pock method
+        # CP
         # ------------------------------------------------------------------------------------------------------------------
-        # start time for chambolle-pock method
         start_CP = time.time()
-
-        solution = cpa.core.CPASOCP(prediction_horizon) \
+        solution_CP = cpa.core.CPASOCP(prediction_horizon) \
             .with_dynamics(A, B) \
             .with_cost(cost_type, Q, R, P) \
             .with_constraints(constraints_type, stage_sets, terminal_set) \
@@ -136,9 +109,9 @@ while solved_num < 100:
 
         CP_time = time.time() - start_CP
 
-        z_CP = solution.get_z_value
+        z_CP = solution_CP.get_z_value
 
-        if solution.get_status == 0:
+        if solution_CP.get_status == 0:
             f = open("Chambolle-Pock.txt", "a")
             print(f"problem{solved_num} converged {CP_time}", file=f)
             f.close()
@@ -147,26 +120,34 @@ while solved_num < 100:
             print(f"problem{solved_num} failed {CP_time}", file=f)
             f.close()
 
-        # CP_scaling
+        # SuperMann
         # ------------------------------------------------------------------------------------------------------------------
-        start_CP_scaling = time.time()
-        solution_CP_scaling = cpa.core.CPASOCP(prediction_horizon) \
+        c0 = 0.99
+        c1 = 0.99
+        q = 0.99
+        beta = 0.5
+        sigma = 0.1
+        lambda_ = 1.95
+        m = 3
+        start_SuperMann = time.time()
+
+        solution_SuperMann = cpa.core.CPASOCP(prediction_horizon) \
             .with_dynamics(A, B) \
             .with_cost(cost_type, Q, R, P) \
-            .with_constraints_scaling(constraints_type, stage_sets, terminal_set) \
-            .CP_scaling(epsilon, initial_state, z0, eta0)
+            .with_constraints(constraints_type, stage_sets, terminal_set) \
+            .CP_SupperMann(epsilon, initial_state, z0, eta0, m, c0, c1, q, beta, sigma, lambda_)
 
-        CP_scaling_time = time.time() - start_CP_scaling
+        SuperMann_time = time.time() - start_SuperMann
 
-        z_CP_scaling = solution_CP_scaling.get_z_value
+        z_SuperMann = solution_SuperMann.get_z_value
 
-        if solution_CP_scaling.get_status == 0:
-            f = open("Preconditioning.txt", "a")
-            print(f"problem{solved_num} converged {CP_scaling_time}", file=f)
+        if solution_SuperMann.get_status == 0:
+            f = open("SuperMann.txt", "a")
+            print(f"problem{solved_num} converged {SuperMann_time}", file=f)
             f.close()
         else:
-            f = open("Preconditioning.txt", "a")
-            print(f"problem{solved_num} failed {CP_scaling_time}", file=f)
+            f = open("SuperMann.txt", "a")
+            print(f"problem{solved_num} failed {SuperMann_time}", file=f)
             f.close()
 
-        print('problem_loop:', solved_num)
+        print('solved_num:', solved_num)
