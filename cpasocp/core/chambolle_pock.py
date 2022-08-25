@@ -122,7 +122,7 @@ class ChambollePock:
         vector = np.vstack((vector_stage, vector_terminal))
         return vector
 
-    def SuperMann(self, z_prev, eta_prev, z_next, eta_next, op_A, memory_num, c0, c1, q, beta, sigma, lambda_):
+    def anderson_acceleration(self, memory_num, x_k, T_x_k):
         N = self.__N
         x0 = self.__x0
         A = self.__A
@@ -140,16 +140,6 @@ class ChambollePock:
         R_tilde_seq = self.__R_tilde_seq
         K_seq = self.__K_seq
         A_bar_seq = self.__A_bar_seq
-        n_max = 10000
-        x_k = np.vstack((z_prev, eta_prev))
-        T_x_k = np.vstack((z_next, eta_next))
-        if i == 0:
-            self.__r_safe = sqrt((x_k - T_x_k).T @ op_A @ (x_k - T_x_k))
-            self.__supermann_eta = self.__r_safe
-        if sqrt((x_k - T_x_k).T @ op_A @ (x_k - T_x_k)) <= self.__epsilon:
-            return x_k
-
-        # Choose an update direction
         m_i = min(m, i)
         oldest_flag = i % m
         T_x_k_z_prev = T_x_k[0: n_z]
@@ -180,6 +170,108 @@ class ChambollePock:
                 Y_k = np.hstack((Y_k, self.__y_cache[k]))
         t_k = np.linalg.lstsq(Y_k, r_k, rcond=None)[0]
         d_k = -r_k - (S_k - Y_k) @ t_k
+        return d_k
+
+    def sgn(self, x):
+        if x >= 0:
+            return 1
+        else:
+            return 0
+
+    def modified_restarted_broyden(self, memory_num, x_k, T_x_k):
+        N = self.__N
+        x0 = self.__x0
+        A = self.__A
+        B = self.__B
+        R = self.__R
+        m = memory_num
+        i = self.__loop_time
+        n_x = A.shape[1]
+        n_u = B.shape[1]
+        n_z = N * (n_x + n_u) + n_x
+        alpha = self.__alpha
+        L = self.__L
+        L_adj = self.__L_adj
+        P_seq = self.__P_seq
+        R_tilde_seq = self.__R_tilde_seq
+        K_seq = self.__K_seq
+        A_bar_seq = self.__A_bar_seq
+        oldest_flag = i % m
+
+        theta_bar = 0.5
+        d = - (x_k - T_x_k)
+        w_k = x_k + d
+        w_k_z_prev = w_k[0: n_z]
+        w_k_eta_prev = w_k[n_z: 2 * n_z]
+        w_k_z_next = core_online.proximal_of_h_online_part(prediction_horizon=N,
+                                                             proximal_lambda=alpha,
+                                                             initial_state=x0,
+                                                             initial_guess_vector=w_k_z_prev
+                                                                                  - alpha * L_adj @ w_k_eta_prev,
+                                                             state_dynamics=A,
+                                                             control_dynamics=B,
+                                                             control_weight=R,
+                                                             P_seq=P_seq,
+                                                             R_tilde_seq=R_tilde_seq,
+                                                             K_seq=K_seq,
+                                                             A_bar_seq=A_bar_seq)
+        w_k_eta_half_next = w_k_eta_prev + alpha * L @ (2 * w_k_z_next - w_k_z_prev)
+        w_k_eta_next = w_k_eta_half_next - alpha * ChambollePock.proj_to_c(self, w_k_eta_half_next / alpha)
+        T_w_k = np.vstack((w_k_z_next, w_k_eta_next))
+
+        s = w_k - x_k
+        tilde_s = w_k - T_w_k - (x_k - T_x_k)
+        if oldest_flag == 0:
+            self.__s_cache = [s]
+            self.__y_cache = [tilde_s]
+            tilde_s = tilde_s + np.inner(self.__s_cache[0].T, tilde_s.T) * tilde_s
+            d = d + np.inner(self.__s_cache[0].T, d.T) * tilde_s
+        else:
+            self.__s_cache.append(s)
+            self.__y_cache.append(tilde_s)
+            num_s = len(self.__s_cache)
+            for k in range(num_s):
+                tilde_s = tilde_s + np.inner(self.__s_cache[num_s-k-1].T, tilde_s.T) * self.__y_cache[num_s-k-1]
+                d = d + np.inner(self.__s_cache[num_s-k-1].T, d.T) * self.__y_cache[num_s-k-1]
+        gamma = np.inner(tilde_s.T, s.T) / (np.linalg.norm(s) ** 2)
+        if abs(gamma) >= theta_bar:
+            theta = 1
+        else:
+            theta = (1 - ChambollePock.sgn(self, gamma) * theta_bar) / (1 - gamma)
+        tilde_s = theta / (1 - theta + theta * gamma) / (np.linalg.norm(s) ** 2) * (s - tilde_s)
+        d = d + np.inner(s.T, d.T) * tilde_s
+        return d
+
+    def SuperMann(self, z_prev, eta_prev, z_next, eta_next, op_A, memory_num, c0, c1, q, beta, sigma, lambda_):
+        N = self.__N
+        x0 = self.__x0
+        A = self.__A
+        B = self.__B
+        R = self.__R
+        m = memory_num
+        i = self.__loop_time
+        n_x = A.shape[1]
+        n_u = B.shape[1]
+        n_z = N * (n_x + n_u) + n_x
+        alpha = self.__alpha
+        L = self.__L
+        L_adj = self.__L_adj
+        P_seq = self.__P_seq
+        R_tilde_seq = self.__R_tilde_seq
+        K_seq = self.__K_seq
+        A_bar_seq = self.__A_bar_seq
+        n_max = 10000
+        x_k = np.vstack((z_prev, eta_prev))
+        T_x_k = np.vstack((z_next, eta_next))
+        if i == 0:
+            self.__r_safe = sqrt((x_k - T_x_k).T @ op_A @ (x_k - T_x_k))
+            self.__supermann_eta = self.__r_safe
+        if sqrt((x_k - T_x_k).T @ op_A @ (x_k - T_x_k)) <= self.__epsilon:
+            return x_k
+
+        # Choose an update direction
+        # d_k = ChambollePock.anderson_acceleration(self, m, x_k, T_x_k)
+        d_k = ChambollePock.modified_restarted_broyden(self, m, x_k, T_x_k)
 
         # K0
         if sqrt((x_k - T_x_k).T @ op_A @ (x_k - T_x_k)) <= c0 * self.__supermann_eta:
