@@ -204,17 +204,17 @@ class ChambollePock:
         w_k_z_prev = w_k[0: n_z]
         w_k_eta_prev = w_k[n_z: 2 * n_z]
         w_k_z_next = core_online.proximal_of_h_online_part(prediction_horizon=N,
-                                                             proximal_lambda=alpha,
-                                                             initial_state=x0,
-                                                             initial_guess_vector=w_k_z_prev
-                                                                                  - alpha * L_adj @ w_k_eta_prev,
-                                                             state_dynamics=A,
-                                                             control_dynamics=B,
-                                                             control_weight=R,
-                                                             P_seq=P_seq,
-                                                             R_tilde_seq=R_tilde_seq,
-                                                             K_seq=K_seq,
-                                                             A_bar_seq=A_bar_seq)
+                                                           proximal_lambda=alpha,
+                                                           initial_state=x0,
+                                                           initial_guess_vector=w_k_z_prev
+                                                                                - alpha * L_adj @ w_k_eta_prev,
+                                                           state_dynamics=A,
+                                                           control_dynamics=B,
+                                                           control_weight=R,
+                                                           P_seq=P_seq,
+                                                           R_tilde_seq=R_tilde_seq,
+                                                           K_seq=K_seq,
+                                                           A_bar_seq=A_bar_seq)
         w_k_eta_half_next = w_k_eta_prev + alpha * L @ (2 * w_k_z_next - w_k_z_prev)
         w_k_eta_next = w_k_eta_half_next - alpha * ChambollePock.proj_to_c(self, w_k_eta_half_next / alpha)
         T_w_k = np.vstack((w_k_z_next, w_k_eta_next))
@@ -231,8 +231,8 @@ class ChambollePock:
             self.__y_cache.append(tilde_s)
             num_s = len(self.__s_cache)
             for k in range(num_s):
-                tilde_s = tilde_s + np.inner(self.__s_cache[num_s-k-1].T, tilde_s.T) * self.__y_cache[num_s-k-1]
-                d = d + np.inner(self.__s_cache[num_s-k-1].T, d.T) * self.__y_cache[num_s-k-1]
+                tilde_s = tilde_s + np.inner(self.__s_cache[num_s - k - 1].T, tilde_s.T) * self.__y_cache[num_s - k - 1]
+                d = d + np.inner(self.__s_cache[num_s - k - 1].T, d.T) * self.__y_cache[num_s - k - 1]
         gamma = np.inner(tilde_s.T, s.T) / (np.linalg.norm(s) ** 2)
         if abs(gamma) >= theta_bar:
             theta = 1
@@ -242,7 +242,8 @@ class ChambollePock:
         d = d + np.inner(s.T, d.T) * tilde_s
         return d
 
-    def SuperMann(self, z_prev, eta_prev, z_next, eta_next, op_A, memory_num, c0, c1, q, beta, sigma, lambda_):
+    def SuperMann(self, z_prev, eta_prev, z_next, eta_next, op_A, memory_num, c0, c1, q, beta, sigma, lambda_,
+                  direction):
         N = self.__N
         x0 = self.__x0
         A = self.__A
@@ -270,8 +271,12 @@ class ChambollePock:
             return x_k
 
         # Choose an update direction
-        # d_k = ChambollePock.anderson_acceleration(self, m, x_k, T_x_k)
-        d_k = ChambollePock.modified_restarted_broyden(self, m, x_k, T_x_k)
+        if direction == 'anderson':
+            # print('choose update direction using anderson acceleration')
+            d_k = ChambollePock.anderson_acceleration(self, m, x_k, T_x_k)
+        if direction == 'broyden':
+            # print('choose update direction using broyden method')
+            d_k = ChambollePock.modified_restarted_broyden(self, m, x_k, T_x_k)
 
         # K0
         if sqrt((x_k - T_x_k).T @ op_A @ (x_k - T_x_k)) <= c0 * self.__supermann_eta:
@@ -311,7 +316,7 @@ class ChambollePock:
             if rho_k[0, 0] >= sigma * sqrt((w_k - T_w_k).T @ op_A @ (w_k - T_w_k)) \
                     * sqrt((x_k - T_x_k).T @ op_A @ (x_k - T_x_k)):
                 x_k = x_k - lambda_ * rho_k[0, 0] / (sqrt((w_k - T_w_k).T @ op_A @ (w_k - T_w_k)) ** 2) * (
-                            w_k - T_w_k)
+                        w_k - T_w_k)
                 break
             else:
                 tau_k = beta * tau_k
@@ -464,7 +469,7 @@ class ChambollePock:
         self.__z = z_next_scaling_back
         return self
 
-    def CP_SuperMann(self, memory_num, c0, c1, q, beta, sigma, lambda_):
+    def CP_SuperMann(self, memory_num, c0, c1, q, beta, sigma, lambda_, direction):
         N = self.__N
         A = self.__A
         B = self.__B
@@ -522,7 +527,7 @@ class ChambollePock:
 
             # use SuperMann
             x_k = ChambollePock.SuperMann(
-                self, z_prev, eta_prev, z_next, eta_next, op_A, m, c0, c1, q, beta, sigma, lambda_)
+                self, z_prev, eta_prev, z_next, eta_next, op_A, m, c0, c1, q, beta, sigma, lambda_, direction)
             # update z, eta to CP
             z_next = x_k[0:n_z]
             eta_next = x_k[n_z:2 * n_z]

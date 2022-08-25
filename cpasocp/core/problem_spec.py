@@ -169,7 +169,7 @@ class CPASOCP:
     # SuperMann --------------------------------------------------------------------------------------------------------
 
     def CP_SupperMann(self, epsilon, initial_state, initial_guess_z, initial_guess_eta, memory_num, c0, c1, q, beta,
-                      sigma, lambda_):
+                      sigma, lambda_, dirction='anderson acceleration'):
         L, L_z, L_adj, alpha = core_cp.make_alpha(self.__prediction_horizon, self.__A, self.__B, self.__Gamma_x,
                                                       self.__Gamma_u, self.__Gamma_N, initial_guess_z)
         P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(
@@ -179,7 +179,7 @@ class CPASOCP:
             self.__prediction_horizon, initial_state, L, L_z, L_adj, alpha, self.__A, self.__B,
             self.__R, P_seq, R_tilde_seq, K_seq, A_bar_seq, self.__Gamma_x, self.__Gamma_u,
             self.__Gamma_N, self.__C_t, self.__C_N)
-        CP_sup.CP_SuperMann(memory_num, c0, c1, q, beta, sigma, lambda_)
+        CP_sup.CP_SuperMann(memory_num, c0, c1, q, beta, sigma, lambda_, dirction)
         self.__residuals_cache = CP_sup.get_residuals_cache
         self.__z = CP_sup.get_z
         self.__status = CP_sup.get_status
