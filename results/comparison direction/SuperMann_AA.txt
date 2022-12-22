@@ -1,0 +1,62 @@
+---
+algname: SuperMann,AA,mem=3
+success: converged
+free_format: True
+---
+problem1 converged 8
+problem2 converged 7
+problem3 converged 13
+problem4 converged 12
+problem5 converged 8
+problem6 converged 8
+problem7 converged 7
+problem8 converged 14
+problem9 converged 12
+problem10 converged 8
+problem11 converged 7
+problem12 converged 8
+problem13 converged 8
+problem14 converged 7
+problem15 converged 9
+problem16 converged 9
+problem17 converged 7
+problem18 converged 8
+problem19 converged 12
+problem20 converged 8
+problem21 converged 13
+problem22 converged 10
+problem23 converged 8
+problem24 converged 8
+problem25 converged 8
+problem26 converged 10
+problem27 converged 7
+problem28 converged 8
+problem29 converged 8
+problem30 converged 6
+problem31 converged 8
+problem32 converged 7
+problem33 converged 7
+problem34 converged 13
+problem35 converged 7
+problem36 converged 12
+problem37 converged 11
+problem38 converged 7
+problem39 converged 9
+problem40 converged 8
+problem41 converged 7
+problem42 converged 8
+problem43 converged 8
+problem44 converged 12
+problem45 converged 8
+problem46 converged 8
+problem47 converged 9
+problem48 converged 8
+problem49 converged 8
+problem50 converged 8
+problem51 converged 8
+problem52 converged 6
+problem53 converged 9
+problem54 converged 12
+problem55 converged 8
+problem56 converged 11
+problem57 converged 12

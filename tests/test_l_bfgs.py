@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import cvxpy as cp
 import cpasocp as cpa
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import time
 
 
@@ -59,7 +59,7 @@ class TestLBFGS(unittest.TestCase):
             .L_BFGS(epsilon, TestLBFGS.z0, m)
         L_BFGS_time = time.time() - start_L_BFGS
         print(L_BFGS_time)
-        x_L_BFGS = solution.get_z_value
+        x_L_BFGS = solution.z
         # print(x_L_BFGS)
         # if not np.allclose(x_L_BFGS.T, TestLBFGS.x.value, atol=tol):
         #     raise Exception("solutions not close")
@@ -70,11 +70,11 @@ class TestLBFGS(unittest.TestCase):
             .with_dynamics(TestLBFGS.A, TestLBFGS.B) \
             .with_cost(TestLBFGS.cost_type, TestLBFGS.Q, TestLBFGS.R, TestLBFGS.P, TestLBFGS.q) \
             .with_constraints() \
-            .chambolle_pock_algorithm(TestLBFGS.epsilon, TestLBFGS.initial_state, TestLBFGS.z0,
+            .chambolle_pock(TestLBFGS.epsilon, TestLBFGS.initial_state, TestLBFGS.z0,
                                       TestLBFGS.eta0)
         CP_time = time.time() - start_CP
         print(CP_time)
-        z_chambolle_pock = solution.get_z_value
+        z_chambolle_pock = solution.z
         # print(z_chambolle_pock[-TestLBFGS.n_x-1:-1])
         error_CP_and_L_BFGS = np.linalg.norm(z_chambolle_pock - x_L_BFGS, np.inf)
         print('error_CP_and_L_BFGS:', error_CP_and_L_BFGS)
@@ -82,7 +82,7 @@ class TestLBFGS(unittest.TestCase):
         # print('error_CP:', error_CP)
         # self.assertAlmostEqual(error_CP, 0, delta=tol)
 
-        cache_grad = solution.get_L_BFGS_grad_cache
+        cache_grad = solution.L_BFGS_grad_cache
         # plt.semilogy(cache_grad)
         # plt.show()
 

@@ -1,0 +1,62 @@
+---
+algname: SuperMann,RB,mem=200
+success: converged
+free_format: True
+---
+problem1 converged 52
+problem2 fail 7
+problem3 fail 13
+problem4 converged 79
+problem5 fail 8
+problem6 converged 50
+problem7 fail 7
+problem8 converged 53
+problem9 fail 12
+problem10 converged 53
+problem11 converged 47
+problem12 converged 51
+problem13 fail 8
+problem14 converged 36
+problem15 converged 52
+problem16 converged 46
+problem17 converged 43
+problem18 fail 8
+problem19 converged 32
+problem20 converged 49
+problem21 converged 54
+problem22 converged 61
+problem23 fail 8
+problem24 converged 46
+problem25 converged 41
+problem26 converged 60
+problem27 converged 42
+problem28 converged 43
+problem29 converged 46
+problem30 converged 49
+problem31 fail 8
+problem32 fail 7
+problem33 converged 38
+problem34 fail 13
+problem35 converged 53
+problem36 converged 45
+problem37 converged 47
+problem38 converged 53
+problem39 fail 9
+problem40 fail 8
+problem41 converged 47
+problem42 fail 8
+problem43 converged 39
+problem44 fail 12
+problem45 fail 8
+problem46 converged 54
+problem47 converged 57
+problem48 converged 28
+problem49 converged 50
+problem50 converged 63
+problem51 converged 55
+problem52 converged 43
+problem53 converged 45
+problem54 converged 51
+problem55 converged 53
+problem56 converged 57
+problem57 fail 12

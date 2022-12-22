@@ -101,7 +101,7 @@ for problem_loop in range(100):
                 .with_constraints(constraints_type, stage_sets, terminal_set) \
                 .chambolle_pock(epsilon, initial_state, z0, eta0)
 
-            iterations_cache.append(len(solution.get_residuals_cache))
+            iterations_cache.append(len(solution.residuals_cache))
     iterations = 0
     for k in range(len(iterations_cache)):
         iterations += iterations_cache[k]

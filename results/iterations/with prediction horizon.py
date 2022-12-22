@@ -96,6 +96,6 @@ for problem_loop in range(100):
             .with_constraints(constraints_type, stage_sets, terminal_set) \
             .chambolle_pock(epsilon, initial_state, z0, eta0)
 
-        iterations = len(solution.get_residuals_cache)
+        iterations = len(solution.residuals_cache)
         print(f"({prediction_horizon}, {iterations})")
     # print('problem_loop:', problem_loop)

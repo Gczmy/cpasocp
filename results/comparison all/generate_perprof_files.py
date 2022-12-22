@@ -110,13 +110,13 @@ for problem_loop in range(100):
         .with_dynamics(A, B) \
         .with_cost(cost_type, Q, R, P) \
         .with_constraints(constraints_type, stage_sets, terminal_set) \
-        .chambolle_pock_algorithm(epsilon_CP, x0, z0, eta0)
+        .chambolle_pock(epsilon_CP, x0, z0, eta0)
 
     CP_time = time.time() - start_CP
 
-    z_CP = solution.get_z_value
+    z_CP = solution.z
 
-    if solution.get_status == 0:
+    if solution.status == 0:
         f = open("Chambolle-Pock.txt", "a")
         print(f"problem{problem_loop} converged {CP_time}", file=f)
         f.close()
@@ -200,9 +200,9 @@ for problem_loop in range(100):
 
     CP_scaling_time = time.time() - start_CP_scaling
 
-    z_CP_scaling = solution_CP_scaling.get_z_value
+    z_CP_scaling = solution_CP_scaling.z
 
-    if solution_CP_scaling.get_status == 0:
+    if solution_CP_scaling.status == 0:
         f = open("CP_scaling.txt", "a")
         print(f"problem{problem_loop} converged {CP_scaling_time}", file=f)
         f.close()
@@ -220,13 +220,13 @@ for problem_loop in range(100):
         .with_dynamics(A, B) \
         .with_cost(cost_type, Q, R, P) \
         .with_constraints(constraints_type, stage_sets, terminal_set) \
-        .ADMM(epsilon_ADMM, x0, z0, eta0)
+        .admm(epsilon_ADMM, x0, z0, eta0)
 
     ADMM_time = time.time() - start_ADMM
 
-    z_ADMM = solution_ADMM.get_z_value
+    z_ADMM = solution_ADMM.z
 
-    if solution_ADMM.get_status == 0:
+    if solution_ADMM.status == 0:
         f = open("ADMM.txt", "a")
         print(f"problem{problem_loop} converged {ADMM_time}", file=f)
         f.close()
@@ -243,13 +243,13 @@ for problem_loop in range(100):
         .with_dynamics(A, B) \
         .with_cost(cost_type, Q, R, P) \
         .with_constraints_scaling(constraints_type, stage_sets, terminal_set) \
-        .ADMM_scaling(epsilon_ADMM, x0, z0, eta0)
+        .admm_scaling(epsilon_ADMM, x0, z0, eta0)
 
     ADMM_scaling_time = time.time() - start_ADMM_scaling
 
-    z_ADMM_scaling = solution_ADMM_scaling.get_z_value
+    z_ADMM_scaling = solution_ADMM_scaling.z
 
-    if solution_ADMM_scaling.get_status == 0:
+    if solution_ADMM_scaling.status == 0:
         f = open("ADMM_scaling.txt", "a")
         print(f"problem{problem_loop} converged {ADMM_scaling_time}", file=f)
         f.close()
@@ -305,7 +305,7 @@ for problem_loop in range(100):
     f_ADMM_scaling += 0.5 * x_N_ADMM_scaling.T @ Q @ x_N_ADMM_scaling
     f_ADMM_scaling = f_ADMM_scaling[0, 0]
     gradient_f_ADMM_scaling += P @ x_N_ADMM_scaling
-    if solution.get_status == 0:
+    if solution.status == 0:
         f = open("Chambolle-Pock_cost.txt", "a")
         print(f"problem{problem_loop} converged {f_CP}", file=f)
         f.close()
@@ -313,7 +313,7 @@ for problem_loop in range(100):
         f = open("Chambolle-Pock_cost.txt", "a")
         print(f"problem{problem_loop} failed {f_CP}", file=f)
         f.close()
-    if solution_ADMM.get_status == 0:
+    if solution_ADMM.status == 0:
         f = open("ADMM_cost.txt", "a")
         print(f"problem{problem_loop} converged {f_ADMM}", file=f)
         f.close()
@@ -321,7 +321,7 @@ for problem_loop in range(100):
         f = open("ADMM_cost.txt", "a")
         print(f"problem{problem_loop} failed {f_ADMM}", file=f)
         f.close()
-    if solution_CP_scaling.get_status == 0:
+    if solution_CP_scaling.status == 0:
         f = open("CP_scaling_cost.txt", "a")
         print(f"problem{problem_loop} converged {f_CP_scaling}", file=f)
         f.close()
@@ -329,7 +329,7 @@ for problem_loop in range(100):
         f = open("CP_scaling_cost.txt", "a")
         print(f"problem{problem_loop} failed {f_CP_scaling}", file=f)
         f.close()
-    if solution_ADMM_scaling.get_status == 0:
+    if solution_ADMM_scaling.status == 0:
         f = open("ADMM_scaling_cost.txt", "a")
         print(f"problem{problem_loop} converged {f_ADMM_scaling}", file=f)
         f.close()

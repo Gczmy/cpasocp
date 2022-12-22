@@ -38,9 +38,16 @@ class TestSets(unittest.TestCase):
         for i in range(initial_state.shape[0]):
             z0[i] = initial_state[i]
 
-        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(prediction_horizon, proximal_lambda, A,
-                                                                                B,
-                                                                                Q, R, P).algorithm()
+        offline = core_offline.ProximalOfflinePart()
+        offline.prediction_horizon = prediction_horizon
+        offline.state_dynamics = A
+        offline.control_dynamics = B
+        offline.stage_state_weight = Q
+        offline.control_weight = R
+        offline.terminal_state_weight = P
+        offline.proximal_lambda = proximal_lambda
+        offline.algorithm()
+
         L = core_lin_op.LinearOperator(prediction_horizon, A, B, Gamma_x, Gamma_u, Gamma_N).make_L_op()
         L_z = L * z0
         L_adj = core_lin_op.LinearOperator(prediction_horizon, A, B, Gamma_x, Gamma_u, Gamma_N).make_L_adj()
@@ -92,8 +99,16 @@ class TestSets(unittest.TestCase):
 
         z_cp = np.vstack((z_cp, np.reshape(x_seq.value[:, N], (n_x, 1))))  # xN
 
-        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(prediction_horizon, proximal_lambda, A,
-                                                                                B, Q, R, P,).algorithm()
+        offline = core_offline.ProximalOfflinePart()
+        offline.prediction_horizon = prediction_horizon
+        offline.state_dynamics = A
+        offline.control_dynamics = B
+        offline.stage_state_weight = Q
+        offline.control_weight = R
+        offline.terminal_state_weight = P
+        offline.proximal_lambda = proximal_lambda
+        offline.algorithm()
+        P_seq = offline.P_seq
         print(P_seq[:, :, 0])
 
 

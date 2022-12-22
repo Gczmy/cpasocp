@@ -109,9 +109,9 @@ while solved_num < 100:
 
         CP_time = time.time() - start_CP
 
-        z_CP = solution_CP.get_z_value
+        z_CP = solution_CP.z
 
-        if solution_CP.get_status == 0:
+        if solution_CP.status == 0:
             f = open("Chambolle-Pock.txt", "a")
             print(f"problem{solved_num} converged {CP_time}", file=f)
             f.close()
@@ -135,13 +135,13 @@ while solved_num < 100:
             .with_dynamics(A, B) \
             .with_cost(cost_type, Q, R, P) \
             .with_constraints(constraints_type, stage_sets, terminal_set) \
-            .CP_SupperMann(epsilon, initial_state, z0, eta0, m, c0, c1, q, beta, sigma, lambda_)
+            .cp_suppermann(epsilon, initial_state, z0, eta0, m, c0, c1, q, beta, sigma, lambda_)
 
         SuperMann_time = time.time() - start_SuperMann
 
-        z_SuperMann = solution_SuperMann.get_z_value
+        z_SuperMann = solution_SuperMann.z
 
-        if solution_SuperMann.get_status == 0:
+        if solution_SuperMann.status == 0:
             f = open("SuperMann.txt", "a")
             print(f"problem{solved_num} converged {SuperMann_time}", file=f)
             f.close()

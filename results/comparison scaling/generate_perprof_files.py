@@ -80,13 +80,13 @@ for problem_loop in range(100):
         .with_dynamics(A, B) \
         .with_cost(cost_type, Q, R, P) \
         .with_constraints_scaling(constraints_type, stage_sets, terminal_set) \
-        .CP_scaling(epsilon_CP, x0, z0, eta0)
+        .cp_scaling(epsilon_CP, x0, z0, eta0)
 
     CP_scaling_time = time.time() - start_CP_scaling
 
-    z_CP_scaling = solution_CP_scaling.get_z_value
+    z_CP_scaling = solution_CP_scaling.z
 
-    if solution_CP_scaling.get_status == 0:
+    if solution_CP_scaling.status == 0:
         f = open("CP_scaling.txt", "a")
         print(f"problem{problem_loop} converged {CP_scaling_time}", file=f)
         f.close()
@@ -104,13 +104,13 @@ for problem_loop in range(100):
         .with_dynamics(A, B) \
         .with_cost(cost_type, Q, R, P) \
         .with_constraints_scaling(constraints_type, stage_sets, terminal_set) \
-        .ADMM_scaling(epsilon_ADMM, x0, z0, eta0)
+        .admm_scaling(epsilon_ADMM, x0, z0, eta0)
 
     ADMM_scaling_time = time.time() - start_ADMM_scaling
 
-    z_ADMM_scaling = solution_ADMM_scaling.get_z_value
+    z_ADMM_scaling = solution_ADMM_scaling.z
 
-    if solution_ADMM_scaling.get_status == 0:
+    if solution_ADMM_scaling.status == 0:
         f = open("ADMM_scaling.txt", "a")
         print(f"problem{problem_loop} converged {ADMM_scaling_time}", file=f)
         f.close()

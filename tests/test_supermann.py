@@ -8,12 +8,15 @@ import matplotlib.pyplot as plt
 
 
 class TestSuperMann(unittest.TestCase):
-    prediction_horizon = 50
+    prediction_horizon = 10
     n_x = 2  # state dimension
     n_u = 1  # input dimension
 
     A = np.array([[0.9, 0.2], [-0.2, 0.9]])
     B = np.array([[1], [0]]) / 0.1
+
+    # A = 0.2 * np.random.rand(n_x, n_x)  # n x n matrices
+    # B = 0.1 * np.random.rand(n_x, n_u)  # n x u matrices
 
     cost_type = "Quadratic"
     Q = 100 * np.eye(n_x)  # n x n matrix
@@ -113,23 +116,23 @@ class TestSuperMann(unittest.TestCase):
         #     .with_dynamics(TestSuperMann.A, TestSuperMann.B) \
         #     .with_cost(TestSuperMann.cost_type, TestSuperMann.Q, TestSuperMann.R, TestSuperMann.P) \
         #     .with_constraints(TestSuperMann.constraints_type, TestSuperMann.stage_sets, TestSuperMann.terminal_set) \
-        #     .CP_scaling(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0)
+        #     .cp_scaling(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0)
         CP_time = time.time() - start_CP
-        z_CP = solution_CP.get_z_value
+        z_CP = solution_CP.z
         print("CP residuals_cache")
-        for i in range(len(solution_CP.get_residuals_cache)):
-            print(f"({i}, {solution_CP.get_residuals_cache[i][0]})")
-        for i in range(len(solution_CP.get_residuals_cache)):
-            print(f"({i}, {solution_CP.get_residuals_cache[i][1]})")
-        for i in range(len(solution_CP.get_residuals_cache)):
-            print(f"({i}, {solution_CP.get_residuals_cache[i][2]})")
+        # for i in range(len(solution_CP.residuals_cache)):
+        #     print(f"({i}, {solution_CP.residuals_cache[i][0]})")
+        # for i in range(len(solution_CP.residuals_cache)):
+        #     print(f"({i}, {solution_CP.residuals_cache[i][1]})")
+        # for i in range(len(solution_CP.residuals_cache)):
+        #     print(f"({i}, {solution_CP.residuals_cache[i][2]})")
         print('CP_time:', CP_time)
         # print('z_CP:', z_CP)
         plt.figure(1)
         plt.title('CP semilogy')
         plt.xlabel('Iterations')
         plt.ylabel('Residuals')
-        plt.semilogy(solution_CP.get_residuals_cache,
+        plt.semilogy(solution_CP.residuals_cache,
                      label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
         plt.legend()
 
@@ -147,17 +150,18 @@ class TestSuperMann(unittest.TestCase):
             .with_dynamics(TestSuperMann.A, TestSuperMann.B) \
             .with_cost(TestSuperMann.cost_type, TestSuperMann.Q, TestSuperMann.R, TestSuperMann.P) \
             .with_constraints(TestSuperMann.constraints_type, TestSuperMann.stage_sets, TestSuperMann.terminal_set) \
-            .CP_SupperMann(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0, m, c0, c1, q, beta, sigma, lambda_)
+            .cp_suppermann(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0, m,
+                           c0, c1, q, beta, sigma, lambda_)
         CP_SuperMann_time = time.time() - start_CP_SuperMann
-        z_CP_SuperMann = solution_CP_SuperMann.get_z_value
+        z_CP_SuperMann = solution_CP_SuperMann.z
         error_CP_SuperMann = np.linalg.norm(z_CP_SuperMann - TestSuperMann.z_cvxpy, np.inf)
         print("SuperMann residuals_cache")
-        for i in range(len(solution_CP_SuperMann.get_residuals_cache)):
-            print(f"({i}, {solution_CP_SuperMann.get_residuals_cache[i][0]})")
-        for i in range(len(solution_CP_SuperMann.get_residuals_cache)):
-            print(f"({i}, {solution_CP_SuperMann.get_residuals_cache[i][1]})")
-        for i in range(len(solution_CP_SuperMann.get_residuals_cache)):
-            print(f"({i}, {solution_CP_SuperMann.get_residuals_cache[i][2]})")
+        # for i in range(len(solution_CP_SuperMann.residuals_cache)):
+        #     print(f"({i}, {solution_CP_SuperMann.residuals_cache[i][0]})")
+        # for i in range(len(solution_CP_SuperMann.residuals_cache)):
+        #     print(f"({i}, {solution_CP_SuperMann.residuals_cache[i][1]})")
+        # for i in range(len(solution_CP_SuperMann.residuals_cache)):
+        #     print(f"({i}, {solution_CP_SuperMann.residuals_cache[i][2]})")
         self.assertAlmostEqual(error_CP_SuperMann, 0, delta=tol)
         # print('CP_SuperMann_time:', CP_SuperMann_time)
 
@@ -165,12 +169,41 @@ class TestSuperMann(unittest.TestCase):
         plt.title('CP_SuperMann semilogy')
         plt.xlabel('Iterations')
         plt.ylabel('Residuals')
-        plt.semilogy(solution_CP_SuperMann.get_residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
+        plt.semilogy(solution_CP_SuperMann.residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
         plt.legend()
         plt.show()
 
     def test_direction_algorithms(self):
         tol = 1e-4
+        start_CP = time.time()
+        solution_CP = cpa.core.CPASOCP(TestSuperMann.prediction_horizon) \
+            .with_dynamics(TestSuperMann.A, TestSuperMann.B) \
+            .with_cost(TestSuperMann.cost_type, TestSuperMann.Q, TestSuperMann.R, TestSuperMann.P) \
+            .with_constraints(TestSuperMann.constraints_type, TestSuperMann.stage_sets, TestSuperMann.terminal_set) \
+            .chambolle_pock(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0)
+        # solution_CP_scaling = cpa.core.CPASOCP(TestSuperMann.prediction_horizon) \
+        #     .with_dynamics(TestSuperMann.A, TestSuperMann.B) \
+        #     .with_cost(TestSuperMann.cost_type, TestSuperMann.Q, TestSuperMann.R, TestSuperMann.P) \
+        #     .with_constraints(TestSuperMann.constraints_type, TestSuperMann.stage_sets, TestSuperMann.terminal_set) \
+        #     .cp_scaling(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0)
+        CP_time = time.time() - start_CP
+        z_CP = solution_CP.z
+        print("CP residuals_cache")
+        # for i in range(len(solution_CP.residuals_cache)):
+        #     print(f"({i}, {solution_CP.residuals_cache[i][0]})")
+        # for i in range(len(solution_CP.residuals_cache)):
+        #     print(f"({i}, {solution_CP.residuals_cache[i][1]})")
+        # for i in range(len(solution_CP.residuals_cache)):
+        #     print(f"({i}, {solution_CP.residuals_cache[i][2]})")
+        print('CP_time:', CP_time)
+        # print('z_CP:', z_CP)
+        plt.figure(1)
+        plt.title('CP semilogy')
+        plt.xlabel('Iterations')
+        plt.ylabel('Residuals')
+        plt.semilogy(solution_CP.residuals_cache,
+                     label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
+        plt.legend()
         # Chambolle-Pock method with SuperMann
         # Anderson acceleration
         # --------------------------------------------------------------------------------------------------------------
@@ -180,67 +213,64 @@ class TestSuperMann(unittest.TestCase):
         beta = 0.5
         sigma = 0.1
         lambda_ = 1.95
-        m = 3
+        m_anderson = 3
         start_CP_SuperMann_anderson = time.time()
         solution_CP_SuperMann_anderson = cpa.core.CPASOCP(TestSuperMann.prediction_horizon) \
             .with_dynamics(TestSuperMann.A, TestSuperMann.B) \
             .with_cost(TestSuperMann.cost_type, TestSuperMann.Q, TestSuperMann.R, TestSuperMann.P) \
             .with_constraints(TestSuperMann.constraints_type, TestSuperMann.stage_sets, TestSuperMann.terminal_set) \
-            .CP_SupperMann(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0, m,
-                           c0, c1, q, beta, sigma, lambda_, dirction='anderson')
-        CP_SuperMann_time = time.time() - start_CP_SuperMann_anderson
-        z_CP_SuperMann_anderson = solution_CP_SuperMann_anderson.get_z_value
+            .cp_suppermann(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0,
+                           m_anderson, c0, c1, q, beta, sigma, lambda_, dirction='anderson')
+        CP_SuperMann_anderson_time = time.time() - start_CP_SuperMann_anderson
+        print('CP_SuperMann_anderson_time:', CP_SuperMann_anderson_time)
+        z_CP_SuperMann_anderson = solution_CP_SuperMann_anderson.z
         error_CP_SuperMann_anderson = np.linalg.norm(z_CP_SuperMann_anderson - TestSuperMann.z_cvxpy, np.inf)
         print("SuperMann residuals_cache")
-        for i in range(len(solution_CP_SuperMann_anderson.get_residuals_cache)):
-            print(f"({i}, {solution_CP_SuperMann_anderson.get_residuals_cache[i][0]})")
-        for i in range(len(solution_CP_SuperMann_anderson.get_residuals_cache)):
-            print(f"({i}, {solution_CP_SuperMann_anderson.get_residuals_cache[i][1]})")
-        for i in range(len(solution_CP_SuperMann_anderson.get_residuals_cache)):
-            print(f"({i}, {solution_CP_SuperMann_anderson.get_residuals_cache[i][2]})")
-        plt.figure(1)
+        # for i in range(len(solution_CP_SuperMann_anderson.residuals_cache)):
+        #     print(f"({i}, {solution_CP_SuperMann_anderson.residuals_cache[i][0]})")
+        # for i in range(len(solution_CP_SuperMann_anderson.residuals_cache)):
+        #     print(f"({i}, {solution_CP_SuperMann_anderson.residuals_cache[i][1]})")
+        # for i in range(len(solution_CP_SuperMann_anderson.residuals_cache)):
+        #     print(f"({i}, {solution_CP_SuperMann_anderson.residuals_cache[i][2]})")
+        plt.figure(2)
         plt.title('CP_SuperMann_anderson semilogy')
         plt.xlabel('Iterations')
         plt.ylabel('Residuals')
-        plt.semilogy(solution_CP_SuperMann_anderson.get_residuals_cache,
+        plt.semilogy(solution_CP_SuperMann_anderson.residuals_cache,
                      label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
         plt.legend()
 
         # Chambolle-Pock method with SuperMann
         # Broyden method
         # --------------------------------------------------------------------------------------------------------------
-        c0 = 0.99
-        c1 = 0.99
-        q = 0.99
-        beta = 0.5
-        sigma = 0.1
-        lambda_ = 1.95
-        m = 3
+        m_broyden = 300
         start_CP_SuperMann_broyden = time.time()
         solution_CP_SuperMann_broyden = cpa.core.CPASOCP(TestSuperMann.prediction_horizon) \
             .with_dynamics(TestSuperMann.A, TestSuperMann.B) \
             .with_cost(TestSuperMann.cost_type, TestSuperMann.Q, TestSuperMann.R, TestSuperMann.P) \
             .with_constraints(TestSuperMann.constraints_type, TestSuperMann.stage_sets, TestSuperMann.terminal_set) \
-            .CP_SupperMann(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0, m,
-                           c0, c1, q, beta, sigma, lambda_, dirction='broyden')
+            .cp_suppermann(TestSuperMann.epsilon, TestSuperMann.initial_state, TestSuperMann.z0, TestSuperMann.eta0,
+                           m_broyden, c0, c1, q, beta, sigma, lambda_, dirction='broyden')
         CP_SuperMann_time_broyden = time.time() - start_CP_SuperMann_broyden
-        z_CP_SuperMann_broyden = solution_CP_SuperMann_broyden.get_z_value
+        print('CP_SuperMann_time_broyden:', CP_SuperMann_time_broyden)
+        z_CP_SuperMann_broyden = solution_CP_SuperMann_broyden.z
         error_CP_SuperMann_broyden = np.linalg.norm(z_CP_SuperMann_broyden - TestSuperMann.z_cvxpy, np.inf)
         print("SuperMann residuals_cache")
-        for i in range(len(solution_CP_SuperMann_broyden.get_residuals_cache)):
-            print(f"({i}, {solution_CP_SuperMann_broyden.get_residuals_cache[i][0]})")
-        for i in range(len(solution_CP_SuperMann_broyden.get_residuals_cache)):
-            print(f"({i}, {solution_CP_SuperMann_broyden.get_residuals_cache[i][1]})")
-        for i in range(len(solution_CP_SuperMann_broyden.get_residuals_cache)):
-            print(f"({i}, {solution_CP_SuperMann_broyden.get_residuals_cache[i][2]})")
+        # for i in range(len(solution_CP_SuperMann_broyden.residuals_cache)):
+        #     print(f"({i}, {solution_CP_SuperMann_broyden.residuals_cache[i][0]})")
+        # for i in range(len(solution_CP_SuperMann_broyden.residuals_cache)):
+        #     print(f"({i}, {solution_CP_SuperMann_broyden.residuals_cache[i][1]})")
+        # for i in range(len(solution_CP_SuperMann_broyden.residuals_cache)):
+        #     print(f"({i}, {solution_CP_SuperMann_broyden.residuals_cache[i][2]})")
         # self.assertAlmostEqual(error_CP_SuperMann_broyden, 0, delta=tol)
-        plt.figure(2)
+        plt.figure(3)
         plt.title('CP_SuperMann_broyden semilogy')
         plt.xlabel('Iterations')
         plt.ylabel('Residuals')
-        plt.semilogy(solution_CP_SuperMann_broyden.get_residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
+        plt.semilogy(solution_CP_SuperMann_broyden.residuals_cache, label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
         plt.legend()
         plt.show()
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -111,21 +111,21 @@ class TestADMM(unittest.TestCase):
             .with_constraints(TestADMM.constraints_type, TestADMM.stage_sets, TestADMM.terminal_set) \
             .chambolle_pock(TestADMM.epsilon, TestADMM.initial_state, TestADMM.z0, TestADMM.eta0)
         CP_time = time.time() - start_CP
-        z_CP = solution_CP.get_z_value
+        z_CP = solution_CP.z
         print("CP residuals_cache")
-        for i in range(len(solution_CP.get_residuals_cache)):
-            print(f"({i}, {solution_CP.get_residuals_cache[i][0]})")
-        for i in range(len(solution_CP.get_residuals_cache)):
-            print(f"({i}, {solution_CP.get_residuals_cache[i][1]})")
-        for i in range(len(solution_CP.get_residuals_cache)):
-            print(f"({i}, {solution_CP.get_residuals_cache[i][2]})")
+        for i in range(len(solution_CP.residuals_cache)):
+            print(f"({i}, {solution_CP.residuals_cache[i][0]})")
+        for i in range(len(solution_CP.residuals_cache)):
+            print(f"({i}, {solution_CP.residuals_cache[i][1]})")
+        for i in range(len(solution_CP.residuals_cache)):
+            print(f"({i}, {solution_CP.residuals_cache[i][2]})")
         print('CP_time:', CP_time)
         # print('z_CP:', z_CP)
         plt.figure(1)
         plt.title('CP semilogy')
         plt.xlabel('Iterations')
         plt.ylabel('Residuals')
-        plt.semilogy(solution_CP.get_residuals_cache,
+        plt.semilogy(solution_CP.residuals_cache,
                      label=['Primal Residual', 'Dual Residual', 'Duality Gap'])
         plt.legend()
 
@@ -136,18 +136,18 @@ class TestADMM(unittest.TestCase):
             .with_dynamics(TestADMM.A, TestADMM.B) \
             .with_cost(TestADMM.cost_type, TestADMM.Q, TestADMM.R, TestADMM.P) \
             .with_constraints(TestADMM.constraints_type, TestADMM.stage_sets, TestADMM.terminal_set) \
-            .ADMM(TestADMM.epsilon, TestADMM.initial_state, TestADMM.z0, TestADMM.eta0)
+            .admm(TestADMM.epsilon, TestADMM.initial_state, TestADMM.z0, TestADMM.eta0)
         ADMM_time = time.time() - start_ADMM
-        z_ADMM = solution_ADMM.get_z_value
+        z_ADMM = solution_ADMM.z
         error_ADMM = np.linalg.norm(z_ADMM - TestADMM.z_cvxpy, np.inf)
-        # print(solution_ADMM.get_residuals_cache)
+        # print(solution_ADMM.residuals_cache)
         print("ADMM residuals_cache")
-        for i in range(len(solution_ADMM.get_residuals_cache)):
-            print(f"({i}, {solution_ADMM.get_residuals_cache[i][0]})")
-        for i in range(len(solution_ADMM.get_residuals_cache)):
-            print(f"({i}, {solution_ADMM.get_residuals_cache[i][1]})")
-        # for i in range(len(solution_ADMM.get_residuals_cache)):
-        #     print(f"({i}, {solution_ADMM.get_residuals_cache[i][2]})")
+        for i in range(len(solution_ADMM.residuals_cache)):
+            print(f"({i}, {solution_ADMM.residuals_cache[i][0]})")
+        for i in range(len(solution_ADMM.residuals_cache)):
+            print(f"({i}, {solution_ADMM.residuals_cache[i][1]})")
+        # for i in range(len(solution_ADMM.residuals_cache)):
+        #     print(f"({i}, {solution_ADMM.residuals_cache[i][2]})")
         # self.assertAlmostEqual(error_ADMM, 0, delta=tol)
         # print('ADMM_time:', ADMM_time)
 
@@ -155,7 +155,7 @@ class TestADMM(unittest.TestCase):
         plt.title('ADMM semilogy')
         plt.xlabel('Iterations')
         plt.ylabel('Residuals')
-        plt.semilogy(solution_ADMM.get_residuals_cache, label=['Primal Residual', 'Dual Residual'])
+        plt.semilogy(solution_ADMM.residuals_cache, label=['Primal Residual', 'Dual Residual'])
         plt.legend()
         plt.show()
 

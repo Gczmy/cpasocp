@@ -30,10 +30,19 @@ class TestOnlinePart(unittest.TestCase):
         n_z = (prediction_horizon + 1) * A.shape[1] + prediction_horizon * B.shape[1]
         z0 = np.array(np.random.rand(n_z, 1))
 
-        P_seq, R_tilde_seq, K_seq, A_bar_seq = core_offline.ProximalOfflinePart(prediction_horizon,
-                                                                                proximal_lambda, A,
-                                                                                B,
-                                                                                Q, R, P).algorithm()
+        offline = core_offline.ProximalOfflinePart()
+        offline.prediction_horizon = prediction_horizon
+        offline.state_dynamics = A
+        offline.control_dynamics = B
+        offline.stage_state_weight = Q
+        offline.control_weight = R
+        offline.terminal_state_weight = P
+        offline.proximal_lambda = proximal_lambda
+        offline.algorithm()
+        P_seq = offline.P_seq
+        R_tilde_seq = offline.R_tilde_seq
+        K_seq = offline.K_seq
+        A_bar_seq = offline.A_bar_seq
         # solving OCP by cvxpy
         # -----------------------------
         N = prediction_horizon

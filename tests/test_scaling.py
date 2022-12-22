@@ -151,9 +151,9 @@ class TestScaling(unittest.TestCase):
             .with_dynamics(TestScaling.A, TestScaling.B) \
             .with_cost(TestScaling.cost_type, TestScaling.Q, TestScaling.R, TestScaling.P) \
             .with_constraints_scaling(TestScaling.constraints_type, TestScaling.stage_sets, TestScaling.terminal_set) \
-            .CP_scaling(TestScaling.epsilon, TestScaling.initial_state, TestScaling.z0, TestScaling.eta0)
+            .cp_scaling(TestScaling.epsilon, TestScaling.initial_state, TestScaling.z0, TestScaling.eta0)
         scaling_time = time.time() - start_scaling
-        z_scaling = solution_scaling.get_z_value
+        z_scaling = solution_scaling.z
         print('scaling_time:', scaling_time)
         error_scaling_cvxpy = np.linalg.norm(z_scaling - TestScaling.z_cvxpy_scaling, np.inf)
         print('error_scaling_cvxpy:', error_scaling_cvxpy)
@@ -184,9 +184,9 @@ class TestScaling(unittest.TestCase):
             .with_dynamics(TestScaling.A, TestScaling.B) \
             .with_cost(TestScaling.cost_type, TestScaling.Q, TestScaling.R, TestScaling.P) \
             .with_constraints_scaling(TestScaling.constraints_type, TestScaling.stage_sets, TestScaling.terminal_set) \
-            .ADMM_scaling(TestScaling.epsilon, TestScaling.initial_state, TestScaling.z0, TestScaling.eta0)
+            .admm_scaling(TestScaling.epsilon, TestScaling.initial_state, TestScaling.z0, TestScaling.eta0)
         ADMM_scaling_time = time.time() - start_ADMM_scaling
-        z_ADMM_scaling = solution_ADMM_scaling.get_z_value
+        z_ADMM_scaling = solution_ADMM_scaling.z
 
         error_ADMM_scaling_cvxpy = np.linalg.norm(z_ADMM_scaling - TestScaling.z_cvxpy_scaling, np.inf)
         print('error_ADMM_scaling_cvxpy:', error_ADMM_scaling_cvxpy)

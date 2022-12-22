@@ -9,7 +9,7 @@ class TestSets(unittest.TestCase):
     __cartesian = core_sets.Cartesian([__ball, __ball, __ball, __ball])
     __num_samples = 100
     __sample_multiplier = 10
-    __set_dimension = 2
+    __set_dimension = 20
     __num_test_repeats = 100
 
     @classmethod
